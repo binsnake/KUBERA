@@ -26,11 +26,9 @@ x86/
 [Ww][Ii][Nn]32/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
-[Aa][Rr][Mm]64[Ee][Cc]/
 bld/
 [Bb]in/
 [Oo]bj/
-[Oo]ut/
 [Ll]og/
 [Ll]ogs/
 
@@ -84,8 +82,6 @@ StyleCopReport.xml
 *.pgc
 *.pgd
 *.rsp
-# but not Directory.Build.rsp, as it configures directory-level build defaults
-!Directory.Build.rsp
 *.sbr
 *.tlb
 *.tli
@@ -157,7 +153,6 @@ coverage*.info
 
 # NCrunch
 _NCrunch_*
-.NCrunch_*
 .*crunch*.local.xml
 nCrunchTemp_*
 
@@ -357,9 +352,6 @@ ASALocalRun/
 # MSBuild Binary and Structured Log
 *.binlog
 
-# AWS SAM Build and Temporary Artifacts folder
-.aws-sam
-
 # NVidia Nsight GPU debugger configuration file
 *.nvuser
 
@@ -404,3 +396,14 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/vcpkg_installed
+*.txt
+*.dll
+*.dll
+*.sys
+*.id0
+*.id1
+*.id2
+*.nam
+*.til
+*.i64
