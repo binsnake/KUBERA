@@ -23,16 +23,22 @@ Focus on isolation (ongoing development).
 KUBERA is not a secure sandbox for malicious software. It may allow host data access or VM escapes, potentially enabling malicious code execution. Always run KUBERA and emulated applications in an isolated environment (e.g., VMWare, VirtualBox, QEMU). KUBERA is a research tool in early development, not sponsored, and not guaranteed to be safe or complete.
 Third-Party Software
 KUBERA references third-party software names for binary initialization. These names and binaries are the property of their respective legal entities or developers, and REAPS, s.r.o. claims no ownership. No binaries are distributed with this project.
+A lot of the code is very experimental and prone to failure. KUBERA is mostly an ongoing learning project towards CPU & OS internals.
 
 ## Dependencies
 KUBERA includes the following open-source libraries:
 
 ImGui - Licensed under the MIT License.
 Capstone - Licensed under the BSD 3-Clause License.
+Boost libraries - Licensed under the BSL-1.0 License.
 
 See the LICENSE file for full license texts and copyright notices.
+
 ## License
 This project is licensed under the MIT license, effective from the commit including the LICENSE file. See the LICENSE file for details.
+
+## Tests
+It is recommended that new instructions are tested vs hardware, we use https://github.com/ZehMatt/x86Tester/ to generate instruction combinations that we test our framework against.
 
 ## Contributing
 Contributions are welcome! Please follow the naming conventions and formatting specified in the .editorconfig file. For detailed guidelines, see CONTRIBUTING.md (if available) or contact REAPS, s.r.o.
