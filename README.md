@@ -1,5 +1,7 @@
 # KUBERA
-KUBERA is a concrete x86 software emulator focused on detailed analysis and control, primarily for Windows binaries, with planned support for Linux and other operating systems. It is platform-independent, designed for research, and not intended for full system emulation.
+KUBERA is a concrete x86 software emulator focused on detailed analysis and control, primarily for Windows binaries, with planned support for Linux and other operating systems. It is aiming to be platform-independent, designed for research, and not intended for full system emulation.
+
+Disclaimer: This project is heavily work-in-progress. Development has been ongoing for several months.
 
 ## Purpose
 KUBERA provides deterministic, reversible, and verbose emulation, offering maximum insight into execution flow, including stack, memory, and register changes. It includes a user-friendly SDK to intercept operations and aims to prevent emulation detection by software. Key use cases:
