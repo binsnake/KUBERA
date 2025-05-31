@@ -42,3 +42,7 @@ For commercial inquiries, licensing questions, or issues, contact REAPS, s.r.o. 
 
 Disclaimer
 KUBERA is provided "as is" for research purposes only. REAPS, s.r.o. is not liable for any damages, data loss, or security breaches resulting from its use. Users are responsible for ensuring compliance with all applicable laws and third-party intellectual property rights when using KUBERA or emulating third-party software.
+
+## Community
+
+We're currently on discord: https://discord.gg/6HyQYzPpyN
