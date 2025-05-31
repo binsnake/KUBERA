@@ -46,3 +46,8 @@ KUBERA is provided "as is" for research purposes only. REAPS, s.r.o. is not liab
 ## Community
 
 We're currently on discord: https://discord.gg/6HyQYzPpyN
+
+## Similar projects
+
+https://github.com/icicle-emu/icicle-emu - Icicle is an emulator written in Rust
+https://github.com/unicorn-engine/unicorn
