@@ -30,7 +30,7 @@ Capstone - Licensed under the BSD 3-Clause License.
 
 See the LICENSE file for full license texts and copyright notices.
 ## License
-This project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License, effective from the commit including the LICENSE file. It is free for non-commercial use; commercial use requires permission from REAPS, s.r.o., which holds all rights. Prior commits without a license are under default copyright ("all rights reserved"). See the LICENSE file for details.
+This project is licensed under the MIT license, effective from the commit including the LICENSE file. See the LICENSE file for details.
 
 ## Contributing
 Contributions are welcome! Please follow the naming conventions and formatting specified in the .editorconfig file. For detailed guidelines, see CONTRIBUTING.md (if available) or contact REAPS, s.r.o.
