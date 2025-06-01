@@ -1315,54 +1315,12 @@ void init_reg_map ( ) {
 }
 
 void init_avx_map ( ) {
-	avx_map [ X86_REG_XMM0 ] = 0;
-	avx_map [ X86_REG_XMM1 ] = 1;
-	avx_map [ X86_REG_XMM2 ] = 2;
-	avx_map [ X86_REG_XMM3 ] = 3;
-	avx_map [ X86_REG_XMM4 ] = 4;
-	avx_map [ X86_REG_XMM5 ] = 5;
-	avx_map [ X86_REG_XMM6 ] = 6;
-	avx_map [ X86_REG_XMM7 ] = 7;
-	avx_map [ X86_REG_XMM8 ] = 8;
-	avx_map [ X86_REG_XMM9 ] = 9;
-	avx_map [ X86_REG_XMM10 ] = 10;
-	avx_map [ X86_REG_XMM11 ] = 11;
-	avx_map [ X86_REG_XMM12 ] = 12;
-	avx_map [ X86_REG_XMM13 ] = 13;
-	avx_map [ X86_REG_XMM14 ] = 14;
-	avx_map [ X86_REG_XMM15 ] = 15;
-	avx_map [ X86_REG_YMM0 ] = 0;
-	avx_map [ X86_REG_YMM1 ] = 1;
-	avx_map [ X86_REG_YMM2 ] = 2;
-	avx_map [ X86_REG_YMM3 ] = 3;
-	avx_map [ X86_REG_YMM4 ] = 4;
-	avx_map [ X86_REG_YMM5 ] = 5;
-	avx_map [ X86_REG_YMM6 ] = 6;
-	avx_map [ X86_REG_YMM7 ] = 7;
-	avx_map [ X86_REG_YMM8 ] = 8;
-	avx_map [ X86_REG_YMM9 ] = 9;
-	avx_map [ X86_REG_YMM10 ] = 10;
-	avx_map [ X86_REG_YMM11 ] = 11;
-	avx_map [ X86_REG_YMM12 ] = 12;
-	avx_map [ X86_REG_YMM13 ] = 13;
-	avx_map [ X86_REG_YMM14 ] = 14;
-	avx_map [ X86_REG_YMM15 ] = 15;
-	avx_map [ X86_REG_ZMM0 ] = 0;
-	avx_map [ X86_REG_ZMM1 ] = 1;
-	avx_map [ X86_REG_ZMM2 ] = 2;
-	avx_map [ X86_REG_ZMM3 ] = 3;
-	avx_map [ X86_REG_ZMM4 ] = 4;
-	avx_map [ X86_REG_ZMM5 ] = 5;
-	avx_map [ X86_REG_ZMM6 ] = 6;
-	avx_map [ X86_REG_ZMM7 ] = 7;
-	avx_map [ X86_REG_ZMM8 ] = 8;
-	avx_map [ X86_REG_ZMM9 ] = 9;
-	avx_map [ X86_REG_ZMM10 ] = 10;
-	avx_map [ X86_REG_ZMM11 ] = 11;
-	avx_map [ X86_REG_ZMM12 ] = 12;
-	avx_map [ X86_REG_ZMM13 ] = 13;
-	avx_map [ X86_REG_ZMM14 ] = 14;
-	avx_map [ X86_REG_ZMM15 ] = 15;
+	std::array<int, 3> bases { X86_REG_XMM0, X86_REG_YMM0, X86_REG_ZMM0 };
+	for ( const auto base : bases ) {
+		for ( auto i = 0u; i < 15; ++i ) {
+			avx_map [ base + i ] = i;
+		}
+	}
 };
 
 uint64_t calc_initial_rsp ( uintptr_t stack_base,
