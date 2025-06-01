@@ -57,3 +57,16 @@ We're currently on discord: https://discord.gg/6HyQYzPpyN
 
 https://github.com/icicle-emu/icicle-emu - Icicle is an emulator written in Rust
 https://github.com/unicorn-engine/unicorn
+
+## Artificially generated content disclaimer
+
+Parts of KUBERA were made with AI-assistance, in the form of full-project context with Gemini 2.5 Pro.
+Due to this reason, 'semantics' can't fall under the MIT license. For clarity, semantics will include the 'Unlicense'.
+
+Gemini's large context window allows for importing the entire project into it.
+While generally AI generated code leads to many inaccuracies, Gemini 2.5 Pro & Flash managed to pass tests against real hardware.
+Gemini code can usually be identified by the comments surrounding it, as it's generally very verbose.
+
+However, AI-generated code suffers from poor performance within the existing architecture, redundant & expensive operations.
+While this is initially okay, because it accelerates development significantly, and allows to check for hard-to-spot issues, in the long run the instruction handlers need to be re-written completely to run faster.
+
