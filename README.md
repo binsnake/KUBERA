@@ -63,14 +63,6 @@ It is recommended that new instructions are tested vs hardware, we use https://g
 ## Contributing
 Contributions are welcome! Please follow the naming conventions and formatting specified in the .editorconfig file. For detailed guidelines, see CONTRIBUTING.md (if available) or contact REAPS, s.r.o.
 
-## Contact
-For commercial inquiries, licensing questions, or issues, contact REAPS, s.r.o. at reapsgg@proton.me.
-
-
-## Community
-
-We're currently on discord: https://discord.gg/6HyQYzPpyN
-
 ## Similar projects
 
 https://github.com/icicle-emu/icicle-emu - Icicle is an emulator written in Rust
