@@ -59,20 +59,18 @@ uint64_t EmulationContext::get_reg ( x86_reg reg, uint8_t size ) const {
 	return extracted_value;
 }
 
-void EmulationContext::set_reg ( x86_reg reg, uint64_t val, uint8_t size, InstructionEffect& effect ) {
+void EmulationContext::set_reg ( x86_reg reg, uint64_t value_to_set, uint8_t size, InstructionEffect& effect ) {
 	const auto full_reg = reg_map [ reg ];
-	uint64_t old_full_val_emu = cpu->registers [ full_reg ];
+	const auto old_full_concrete = cpu->registers [ full_reg ];
 
-	const auto old_full_concrete = static_cast< uint64_t >( old_full_val_emu );
-	const auto value_to_set = static_cast< uint64_t >( val );
 	const auto access_mask = get_access_mask ( reg, size );
 	const auto shift = get_access_shift ( reg, size );
 	GET_OPERAND_MASK ( size_mask, size );
 
-	uint64_t new_full_concrete;
+	uint64_t new_full_concrete = value_to_set;
 
 	if ( size == 4 && ( full_reg >= KRAX && full_reg <= KR15 ) ) {
-		new_full_concrete = static_cast< uint32_t >( value_to_set ); // Zero upper 32 bits
+		new_full_concrete &= 0xFFFFFFFFULL;
 	}
 	else {
 		uint64_t shifted_value = ( value_to_set & size_mask ) << shift;
@@ -85,7 +83,7 @@ void EmulationContext::set_reg ( x86_reg reg, uint64_t val, uint8_t size, Instru
 		cpu->rsp_offset = new_full_concrete - reinterpret_cast< uint64_t >( rsp_base.get ( ) );
 	}
 	if ( !effect.no_log ) {
-		log_reg_change ( effect, reg, old_full_val_emu, new_full_concrete, "set" );
+		log_reg_change ( effect, reg, old_full_concrete, new_full_concrete, "set" );
 	}
 }
 
@@ -398,16 +396,7 @@ uint64_t EmulationContext::get_rflags ( ) const noexcept {
 
 void EmulationContext::set_rflags ( uint64_t rflags, InstructionEffect& effect ) noexcept {
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF;
-	uint64_t old_PF = flags.PF;
-	uint64_t old_AF = flags.AF;
-	uint64_t old_ZF = flags.ZF;
-	uint64_t old_SF = flags.SF;
-	uint64_t old_TF = flags.TF;
-	uint64_t old_IF = flags.IF;
-	uint64_t old_DF = flags.DF;
-	uint64_t old_OF = flags.OF;
-	uint64_t old_AC = flags.AC;
+	auto old_flags = flags.value;
 
 	flags.CF = ( rflags >> 0 ) & 1;  
 	flags.PF = ( rflags >> 2 ) & 1;  
@@ -445,15 +434,7 @@ void EmulationContext::set_rflags ( uint64_t rflags, InstructionEffect& effect )
 		}
 	}
 
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_AF != flags.AF ) log_flag_change ( effect, "AF", old_AF, flags.AF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_TF != flags.TF ) log_flag_change ( effect, "TF", old_TF, flags.TF );
-	if ( old_DF != flags.DF ) log_flag_change ( effect, "DF", old_DF, flags.DF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AC != flags.AC ) log_flag_change ( effect, "AC", old_AC, flags.AC );
+	log_rflags_changes ( old_flags, flags.value, effect );
 }
 
 void EmulationContext::set_eflags ( uint32_t eflags, InstructionEffect& effect ) noexcept {

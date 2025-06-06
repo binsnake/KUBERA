@@ -161,10 +161,10 @@ struct EmulationContext {
 	void set_xmm_double ( x86_reg reg, double value, InstructionEffect& effect );
 
 	uint128_t get_memory_128 ( uint64_t addr ) const;
-	void set_memory_128 ( uint64_t addr, const uint128_t& val, InstructionEffect& effect );	
+	void set_memory_128 ( uint64_t addr, const uint128_t& val, InstructionEffect& effect );
 
 	uint256_t get_memory_256 ( uint64_t addr ) const;
-	void set_memory_256 ( uint64_t addr, const uint256_t& val, InstructionEffect& effect );	
+	void set_memory_256 ( uint64_t addr, const uint256_t& val, InstructionEffect& effect );
 
 	uint512_t get_memory_512 ( uint64_t addr ) const;
 	void set_memory_512 ( uint64_t addr, const uint512_t& val, InstructionEffect& effect );
@@ -187,6 +187,7 @@ struct EmulationContext {
 	void log_reg_change ( InstructionEffect& effect, x86_reg reg, uint64_t old_val, uint64_t new_val, const char* op );
 	void log_reg_change ( InstructionEffect& effect, x86_reg reg, int128_t old_val, int128_t new_val, const char* op );
 	void log_flag_change ( InstructionEffect& effect, const char* flag, uint64_t old_val, uint64_t new_val );
+	void log_rflags_changes ( uint64_t old_rflags, uint64_t new_rflags, InstructionEffect& effect ) noexcept;
 	void log_stack_change ( InstructionEffect& effect, int64_t addr, uint64_t old_val, uint64_t new_val, uint8_t size = 8 );
 	void log_mxcsr_flag_change ( InstructionEffect& effect, const char* flag_name, uint32_t old_val, uint32_t new_val );
 
@@ -877,4 +878,20 @@ inline const std::unordered_map<x86_insn, Handler*> instruction_handlers = {
 	{ X86_INS_OUTSW, &handlers::outx },
 	{ X86_INS_OUTSD, &handlers::outx },
 
+};
+
+class FlagLogger {
+public:
+	FlagLogger ( EmulationContext* emu, InstructionEffect& effect_ref ) : ctx ( emu ), effect ( effect_ref ) {
+		initial_flags = emu->cpu->cpu_flags.flags.value;
+	}
+
+	~FlagLogger ( ) {
+		ctx->log_rflags_changes ( initial_flags, ctx->cpu->cpu_flags.flags.value, effect );
+	}
+
+private:
+	EmulationContext* ctx;
+	InstructionEffect& effect;
+	uint64_t initial_flags;
 };
