@@ -1,6 +1,7 @@
 #include "pch.hpp"
 
 void bzhi ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 
 	uint8_t op_size = ops [ 0 ].size;
@@ -37,14 +38,6 @@ void bzhi ( capstone::Instruction& instr, EmulationContext& state, InstructionEf
 	// Store the result (already masked to operand size)
 	state.set_reg ( dst, res, op_size, effect );
 
-	// --- Correct Flag Updates ---
-	uint64_t old_CF = state.cpu->cpu_flags.flags.CF;
-	uint64_t old_ZF = state.cpu->cpu_flags.flags.ZF;
-	uint64_t old_OF = state.cpu->cpu_flags.flags.OF;
-	uint64_t old_SF = state.cpu->cpu_flags.flags.SF;
-	uint64_t old_AF = state.cpu->cpu_flags.flags.AF;
-	uint64_t old_PF = state.cpu->cpu_flags.flags.PF;
-
 	// CF is set if the index value (bits 7:0) >= operand size in bits
 	state.cpu->cpu_flags.flags.CF = ( index_pos >= size_in_bits );
 	// ZF is set if the result is zero
@@ -54,15 +47,6 @@ void bzhi ( capstone::Instruction& instr, EmulationContext& state, InstructionEf
 	state.cpu->cpu_flags.flags.SF = 0;
 	state.cpu->cpu_flags.flags.AF = 0;
 	state.cpu->cpu_flags.flags.PF = 0;
-
-	// Log flag changes if any occurred
-	if ( old_CF != state.cpu->cpu_flags.flags.CF ) state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
-	if ( old_ZF != state.cpu->cpu_flags.flags.ZF ) state.log_flag_change ( effect, "ZF", old_ZF, state.cpu->cpu_flags.flags.ZF );
-	// Only log cleared flags if they were previously non-zeo
-	if ( old_OF != state.cpu->cpu_flags.flags.OF ) state.log_flag_change ( effect, "OF", old_OF, state.cpu->cpu_flags.flags.OF );
-	if ( old_SF != state.cpu->cpu_flags.flags.SF ) state.log_flag_change ( effect, "SF", old_SF, state.cpu->cpu_flags.flags.SF );
-	if ( old_AF != state.cpu->cpu_flags.flags.AF ) state.log_flag_change ( effect, "AF", old_AF, state.cpu->cpu_flags.flags.AF );
-	if ( old_PF != state.cpu->cpu_flags.flags.PF ) state.log_flag_change ( effect, "PF", old_PF, state.cpu->cpu_flags.flags.PF );
 }
 
 void andn ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
@@ -77,6 +61,7 @@ void andn ( capstone::Instruction& instr, EmulationContext& state, InstructionEf
 }
 
 void bextr ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 
 	uint8_t op_size = ops [ 0 ].size;
@@ -115,26 +100,13 @@ void bextr ( capstone::Instruction& instr, EmulationContext& state, InstructionE
 
 	state.set_reg ( dst, res, op_size, effect );
 
-	uint64_t old_ZF = state.cpu->cpu_flags.flags.ZF;
-	uint64_t old_CF = state.cpu->cpu_flags.flags.CF;
-	uint64_t old_OF = state.cpu->cpu_flags.flags.OF;
-	uint64_t old_SF = state.cpu->cpu_flags.flags.SF;
-	uint64_t old_AF = state.cpu->cpu_flags.flags.AF;
-	uint64_t old_PF = state.cpu->cpu_flags.flags.PF;
-
 	state.cpu->cpu_flags.flags.ZF = ( res == 0 );
 	state.cpu->cpu_flags.flags.CF = 0;
 	state.cpu->cpu_flags.flags.OF = 0;
-
-	if ( old_ZF != state.cpu->cpu_flags.flags.ZF ) state.log_flag_change ( effect, "ZF", old_ZF, state.cpu->cpu_flags.flags.ZF );
-	if ( old_CF != state.cpu->cpu_flags.flags.CF ) state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
-	if ( old_OF != state.cpu->cpu_flags.flags.OF ) state.log_flag_change ( effect, "OF", old_OF, state.cpu->cpu_flags.flags.OF );
-	if ( old_SF != state.cpu->cpu_flags.flags.SF ) state.log_flag_change ( effect, "SF", old_SF, state.cpu->cpu_flags.flags.SF );
-	if ( old_AF != state.cpu->cpu_flags.flags.AF ) state.log_flag_change ( effect, "AF", old_AF, state.cpu->cpu_flags.flags.AF );
-	if ( old_PF != state.cpu->cpu_flags.flags.PF ) state.log_flag_change ( effect, "PF", old_PF, state.cpu->cpu_flags.flags.PF );
 }
 
 void popcnt ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 	uint8_t op_size = ops [ 0 ].size;
 	x86_reg dst = ops [ 0 ].reg;
@@ -227,6 +199,7 @@ void setnz ( capstone::Instruction& instr, EmulationContext& state, InstructionE
 }
 
 void rol ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 
 	uint8_t op_size = ops [ 0 ].size;
@@ -261,9 +234,6 @@ void rol ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 
 	state.set_reg ( dst, final_result, op_size, effect );
 
-	uint64_t old_CF = state.cpu->cpu_flags.flags.CF;
-	uint64_t old_OF = state.cpu->cpu_flags.flags.OF;
-
 	uint8_t count_raw = count_val & 0xFF;
 	if ( count_raw != 0 ) {
 		state.cpu->cpu_flags.flags.CF = final_cf;
@@ -272,13 +242,11 @@ void rol ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 			uint64_t result_msb = ( final_result >> ( size_in_bits - 1 ) ) & 1;
 			state.cpu->cpu_flags.flags.OF = result_msb ^ final_cf;
 		}
-
-		if ( old_CF != state.cpu->cpu_flags.flags.CF ) state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
-		if ( old_OF != state.cpu->cpu_flags.flags.OF ) state.log_flag_change ( effect, "OF", old_OF, state.cpu->cpu_flags.flags.OF );
 	}
 }
 
 void ror ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 
 	uint8_t op_size = ops [ 0 ].size;
@@ -313,9 +281,6 @@ void ror ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 
 	state.set_reg ( dst, final_result, op_size, effect );
 
-	uint64_t old_CF = state.cpu->cpu_flags.flags.CF;
-	uint64_t old_OF = state.cpu->cpu_flags.flags.OF;
-
 	uint8_t count_raw = count_val & 0xFF;
 	if ( count_raw != 0 ) {
 		state.cpu->cpu_flags.flags.CF = final_cf;
@@ -327,13 +292,11 @@ void ror ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 			}
 			state.cpu->cpu_flags.flags.OF = result_msb ^ result_msb_minus_1;
 		}
-
-		if ( old_CF != state.cpu->cpu_flags.flags.CF ) state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
-		if ( old_OF != state.cpu->cpu_flags.flags.OF ) state.log_flag_change ( effect, "OF", old_OF, state.cpu->cpu_flags.flags.OF );
 	}
 }
 
 void rcl ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 
 	uint8_t op_size = ops [ 0 ].size;
@@ -370,9 +333,6 @@ void rcl ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 	// --- Update State ---
 	state.set_reg ( dst, final_result, op_size, effect );
 
-	uint64_t old_CF = state.cpu->cpu_flags.flags.CF;
-	uint64_t old_OF = state.cpu->cpu_flags.flags.OF;
-
 	state.cpu->cpu_flags.flags.CF = final_cf; // Set CF based on loop result
 
 	// OF logic from previous C++ version (only count_raw=1 matters)
@@ -384,12 +344,9 @@ void rcl ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 	else {
 		state.cpu->cpu_flags.flags.OF = 0; // Undefined for count > 1
 	}
-
-	// Log changes
-	if ( old_CF != state.cpu->cpu_flags.flags.CF ) state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
-	if ( old_OF != state.cpu->cpu_flags.flags.OF ) state.log_flag_change ( effect, "OF", old_OF, state.cpu->cpu_flags.flags.OF );
 }
 void rcr ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 
 	uint8_t op_size = ops [ 0 ].size;
@@ -402,7 +359,7 @@ void rcr ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 	uint64_t count_val = src_count;
 	uint8_t size_in_bits = op_size * 8;
 	uint64_t mask = ( op_size == 8 ) ? 0xFFFFFFFFFFFFFFFFULL : ( 1ULL << size_in_bits ) - 1;
-	uint64_t original_val = val & mask; 
+	uint64_t original_val = val & mask;
 	uint8_t count_mask = ( op_size == 8 ) ? 0x3F : 0x1F;
 	uint8_t rot = count_val & count_mask;
 
@@ -417,9 +374,6 @@ void rcr ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 
 	uint64_t final_result = current_val & mask;
 	state.set_reg ( dst, final_result, op_size, effect );
-
-	uint64_t old_CF = state.cpu->cpu_flags.flags.CF;
-	uint64_t old_OF = state.cpu->cpu_flags.flags.OF;
 
 	uint8_t cnt_mod_size_plus_1 = count_val % ( size_in_bits + 1 );
 	uint64_t final_cf;
@@ -450,9 +404,6 @@ void rcr ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 	else {
 		state.cpu->cpu_flags.flags.OF = 0;
 	}
-
-	if ( old_CF != state.cpu->cpu_flags.flags.CF ) state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
-	if ( old_OF != state.cpu->cpu_flags.flags.OF ) state.log_flag_change ( effect, "OF", old_OF, state.cpu->cpu_flags.flags.OF );
 }
 
 void bt ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
@@ -463,7 +414,7 @@ void bt ( capstone::Instruction& instr, EmulationContext& state, InstructionEffe
 	uint64_t val = static_cast< uint64_t >( src1 );
 	uint64_t bit_idx = src2 & ( ( op_size * 8 ) - 1 );
 	state.cpu->cpu_flags.flags.CF = ( val >> bit_idx ) & 1;
-	effect.push_to_changes ( state,std::format ( "Bit {} of {:#x} tested, CF={}", bit_idx, src1, ( char ) state.cpu->cpu_flags.flags.CF ) );
+	effect.push_to_changes ( state, std::format ( "Bit {} of {:#x} tested, CF={}", bit_idx, src1, ( char ) state.cpu->cpu_flags.flags.CF ) );
 }
 
 void bts ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
@@ -489,7 +440,7 @@ void bts ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 			state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
 		}
 
-		effect.push_to_changes ( state,std::format ( "BTS: Bit {} set in {:#x}, CF={}", bit_idx, src1, original_bit ) );
+		effect.push_to_changes ( state, std::format ( "BTS: Bit {} set in {:#x}, CF={}", bit_idx, src1, original_bit ) );
 	}
 	else if ( ops [ 0 ].type == X86_OP_MEM ) {
 		int64_t addr = 0;
@@ -519,12 +470,14 @@ void bts ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 			state.log_flag_change ( effect, "CF", old_CF, state.cpu->cpu_flags.flags.CF );
 		}
 
-		effect.push_to_changes ( state,std::format ( "[{:016x}h] = {:x}h (bit {} set, CF={})", addr, result, bit_idx, original_bit ) );
+		effect.push_to_changes ( state, std::format ( "[{:016x}h] = {:x}h (bit {} set, CF={})", addr, result, bit_idx, original_bit ) );
 	}
 }
 
 void cli ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
-	effect.push_to_changes ( state,"Interrupt Flag cleared (IF=0)" );
+	USE_FLAG_LOGGER ( );
+	state.cpu->cpu_flags.flags.IF = 0;
+	effect.push_to_changes ( state, "Interrupt Flag cleared (IF=0)" );
 }
 
 void btr ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
@@ -557,8 +510,8 @@ void btr ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 		effect.modified_mem.insert ( addr );
 	}
 
-	effect.push_to_changes ( state,std::format ( "BTR: bit {} reset, value 0x{:x} -> 0x{:x}, CF={}",
-														 index, value, new_value, ( char ) state.cpu->cpu_flags.flags.CF ) );
+	effect.push_to_changes ( state, std::format ( "BTR: bit {} reset, value 0x{:x} -> 0x{:x}, CF={}",
+													 index, value, new_value, ( char ) state.cpu->cpu_flags.flags.CF ) );
 }
 
 void cwd ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
@@ -583,7 +536,7 @@ void btc ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 		state.cpu->cpu_flags.flags.CF = ( val >> bit_pos ) & 1;
 		val ^= ( 1ULL << bit_pos );
 		state.set_reg ( dst, val, op_size, effect );
-		effect.push_to_changes ( state,std::format ( "CF={}", ( char ) state.cpu->cpu_flags.flags.CF ) );
+		effect.push_to_changes ( state, std::format ( "CF={}", ( char ) state.cpu->cpu_flags.flags.CF ) );
 	}
 	else if ( ops [ 0 ].type == X86_OP_MEM ) {
 		int64_t addr = 0;
@@ -597,53 +550,45 @@ void btc ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 		val ^= ( 1ULL << bit_pos );
 		state.set_memory ( addr, val, 8, effect );
 		effect.modified_mem.insert ( addr );
-		effect.push_to_changes ( state,std::format ( "[{:016x}h] = {:x}h, CF={}", addr, val, ( char ) state.cpu->cpu_flags.flags.CF ) );
+		effect.push_to_changes ( state, std::format ( "[{:016x}h] = {:x}h, CF={}", addr, val, ( char ) state.cpu->cpu_flags.flags.CF ) );
 	}
 }
 
-void bsr(capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect) {
-    const cs_x86_op* ops = instr.operands();
-    // BSR dest_reg, src_reg/mem
-    // dest_reg must be 16, 32, or 64-bit.
-    // src_operand must be the same size as dest_reg.
+void bsr ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
+	const cs_x86_op* ops = instr.operands ( );
+	// BSR dest_reg, src_reg/mem
+	// dest_reg must be 16, 32, or 64-bit.
+	// src_operand must be the same size as dest_reg.
 
-    x86_reg dst_reg = ops[0].reg;
-    uint8_t op_size = ops[0].size; // Should be 2, 4, or 8
-    uint64_t src_val = helpers::get_src<uint64_t>(&instr, 1, state, op_size);
-    if (state.exit_due_to_critical_error) return;
+	x86_reg dst_reg = ops [ 0 ].reg;
+	uint8_t op_size = ops [ 0 ].size; // Should be 2, 4, or 8
+	uint64_t src_val = helpers::get_src<uint64_t> ( &instr, 1, state, op_size );
+	if ( state.exit_due_to_critical_error ) return;
 
-    // Mask src_val to the operand size, though get_src should ideally handle this.
-    GET_OPERAND_MASK(operand_mask, op_size);
-    src_val &= operand_mask;
+	// Mask src_val to the operand size, though get_src should ideally handle this.
+	GET_OPERAND_MASK ( operand_mask, op_size );
+	src_val &= operand_mask;
 
-    uint64_t old_zf = state.cpu->cpu_flags.flags.ZF;
+	uint64_t old_zf = state.cpu->cpu_flags.flags.ZF;
 
-    if (src_val == 0) {
-        state.cpu->cpu_flags.flags.ZF = 1; // Source is zero, set ZF
-        // Destination register is undefined (Intel) / unchanged (AMD).
-        // We'll follow the common behavior of leaving it unchanged.
-        effect.push_to_changes(state, "BSR: Source is 0, ZF=1, destination unchanged.");
-    } else {
-        state.cpu->cpu_flags.flags.ZF = 0; // Source is non-zero, clear ZF
-        unsigned long index = 0UL;
-        // _BitScanReverse for 16/32-bit, _BitScanReverse64 for 64-bit.
-        bool found = false;
-        if (op_size == 8) found = _BitScanReverse64(&index, src_val);
-        else if (op_size == 4) found = _BitScanReverse(&index, static_cast<uint32_t>(src_val));
-        else if (op_size == 2) found = _BitScanReverse(&index, static_cast<uint16_t>(src_val));
-        // 'found' should always be true here because we checked src_val != 0
-        state.set_reg(dst_reg, static_cast<uint64_t>(index), op_size, effect);
-    }
-
-    if (old_zf != state.cpu->cpu_flags.flags.ZF) state.log_flag_change(effect, "ZF", old_zf, state.cpu->cpu_flags.flags.ZF);
-    // Other flags (CF, OF, SF, AF, PF) are undefined after BSR.
-    // For simplicity in emulation, we might choose to leave them, or explicitly clear them.
-    // Let's clear them to denote undefined behavior for those not explicitly set.
-    uint64_t old_cf = state.cpu->cpu_flags.flags.CF; state.cpu->cpu_flags.flags.CF = 0; if (old_cf != 0) state.log_flag_change(effect, "CF", old_cf, 0);
-    uint64_t old_of = state.cpu->cpu_flags.flags.OF; state.cpu->cpu_flags.flags.OF = 0; if (old_of != 0) state.log_flag_change(effect, "OF", old_of, 0);
-    uint64_t old_sf = state.cpu->cpu_flags.flags.SF; state.cpu->cpu_flags.flags.SF = 0; if (old_sf != 0) state.log_flag_change(effect, "SF", old_sf, 0);
-    uint64_t old_af = state.cpu->cpu_flags.flags.AF; state.cpu->cpu_flags.flags.AF = 0; if (old_af != 0) state.log_flag_change(effect, "AF", old_af, 0);
-    uint64_t old_pf = state.cpu->cpu_flags.flags.PF; state.cpu->cpu_flags.flags.PF = 0; if (old_pf != 0) state.log_flag_change(effect, "PF", old_pf, 0);
+	if ( src_val == 0 ) {
+		state.cpu->cpu_flags.flags.ZF = 1; // Source is zero, set ZF
+		// Destination register is undefined (Intel) / unchanged (AMD).
+		// We'll follow the common behavior of leaving it unchanged.
+		effect.push_to_changes ( state, "BSR: Source is 0, ZF=1, destination unchanged." );
+	}
+	else {
+		state.cpu->cpu_flags.flags.ZF = 0; // Source is non-zero, clear ZF
+		unsigned long index = 0UL;
+		// _BitScanReverse for 16/32-bit, _BitScanReverse64 for 64-bit.
+		bool found = false;
+		if ( op_size == 8 ) found = _BitScanReverse64 ( &index, src_val );
+		else if ( op_size == 4 ) found = _BitScanReverse ( &index, static_cast< uint32_t >( src_val ) );
+		else if ( op_size == 2 ) found = _BitScanReverse ( &index, static_cast< uint16_t >( src_val ) );
+		// 'found' should always be true here because we checked src_val != 0
+		state.set_reg ( dst_reg, static_cast< uint64_t >( index ), op_size, effect );
+	}
 }
 
 void cbw ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
@@ -669,74 +614,70 @@ void cwde ( capstone::Instruction& instr, EmulationContext& state, InstructionEf
 }
 
 void cld ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	state.cpu->cpu_flags.flags.DF = 0;
 }
 void clc ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	state.cpu->cpu_flags.flags.CF = 0;
 }
 
 void clui ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	state.cpu->cpu_flags.flags.IF = 0;
 }
 
 void cmc ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	state.cpu->cpu_flags.flags.CF ^= 1;
 }
 
 void stc ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	state.cpu->cpu_flags.flags.CF = 1;
 }
 
-void tzcnt(capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect) {
-    const cs_x86_op* ops = instr.operands();
-    // TZCNT dest_reg, src_reg/mem
-    // dest_reg must be 16, 32, or 64-bit.
-    // src_operand must be the same size as dest_reg.
+void tzcnt ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
+	const cs_x86_op* ops = instr.operands ( );
+	// TZCNT dest_reg, src_reg/mem
+	// dest_reg must be 16, 32, or 64-bit.
+	// src_operand must be the same size as dest_reg.
 
-    x86_reg dst_reg = ops[0].reg;
-    uint8_t op_size = ops[0].size; // Should be 2, 4, or 8
+	x86_reg dst_reg = ops [ 0 ].reg;
+	uint8_t op_size = ops [ 0 ].size; // Should be 2, 4, or 8
 
-    if (op_size != 2 && op_size != 4 && op_size != 8) {
-        effect.push_to_changes(state, std::format("TZCNT: Invalid operand size {} for destination register.", op_size));
-        state.exit_due_to_critical_error = true;
-        return;
-    }
+	if ( op_size != 2 && op_size != 4 && op_size != 8 ) {
+		effect.push_to_changes ( state, std::format ( "TZCNT: Invalid operand size {} for destination register.", op_size ) );
+		state.exit_due_to_critical_error = true;
+		return;
+	}
 
-    uint64_t src_val = helpers::get_src<uint64_t>(&instr, 1, state, op_size);
-    if (state.exit_due_to_critical_error) return;
+	uint64_t src_val = helpers::get_src<uint64_t> ( &instr, 1, state, op_size );
+	if ( state.exit_due_to_critical_error ) return;
 
-    GET_OPERAND_MASK(operand_mask, op_size);
-    src_val &= operand_mask; // Ensure src_val is masked to operand size
+	GET_OPERAND_MASK ( operand_mask, op_size );
+	src_val &= operand_mask; // Ensure src_val is masked to operand size
 
-    uint64_t result_count = 0;
-    uint8_t size_in_bits = op_size * 8;
+	uint64_t result_count = 0;
+	uint8_t size_in_bits = op_size * 8;
 
-    uint64_t old_cf = state.cpu->cpu_flags.flags.CF;
-    uint64_t old_zf = state.cpu->cpu_flags.flags.ZF;
+	if ( src_val == 0 ) {
+		result_count = size_in_bits;
+		state.cpu->cpu_flags.flags.CF = 1; // Source is zero, CF = 1
+	}
+	else {
+		result_count = static_cast< uint64_t >( std::countr_zero ( src_val ) );
+		state.cpu->cpu_flags.flags.CF = 0; // Source is non-zero, CF = 0
+	}
+	state.cpu->cpu_flags.flags.ZF = ( result_count == 0 ); // ZF = 1 if result is 0, else 0
 
-    if (src_val == 0) {
-        result_count = size_in_bits;
-        state.cpu->cpu_flags.flags.CF = 1; // Source is zero, CF = 1
-    } else {
-        result_count = static_cast<uint64_t>(std::countr_zero(src_val));
-        state.cpu->cpu_flags.flags.CF = 0; // Source is non-zero, CF = 0
-    }
-    state.cpu->cpu_flags.flags.ZF = (result_count == 0); // ZF = 1 if result is 0, else 0
-
-    state.set_reg(dst_reg, result_count, op_size, effect);
-
-    if (old_cf != state.cpu->cpu_flags.flags.CF) state.log_flag_change(effect, "CF", old_cf, state.cpu->cpu_flags.flags.CF);
-    if (old_zf != state.cpu->cpu_flags.flags.ZF) state.log_flag_change(effect, "ZF", old_zf, state.cpu->cpu_flags.flags.ZF);
-
-    // OF, SF, AF, PF are undefined (cleared)
-    uint64_t old_of = state.cpu->cpu_flags.flags.OF; state.cpu->cpu_flags.flags.OF = 0; if (old_of != 0) state.log_flag_change(effect, "OF", old_of, 0);
-    uint64_t old_sf = state.cpu->cpu_flags.flags.SF; state.cpu->cpu_flags.flags.SF = 0; if (old_sf != 0) state.log_flag_change(effect, "SF", old_sf, 0);
-    uint64_t old_af = state.cpu->cpu_flags.flags.AF; state.cpu->cpu_flags.flags.AF = 0; if (old_af != 0) state.log_flag_change(effect, "AF", old_af, 0);
-    uint64_t old_pf = state.cpu->cpu_flags.flags.PF; state.cpu->cpu_flags.flags.PF = 0; if (old_pf != 0) state.log_flag_change(effect, "PF", old_pf, 0);
+	state.set_reg ( dst_reg, result_count, op_size, effect );
 }
 
 
 void bsf ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 	x86_reg dst_reg = ops [ 0 ].reg;
 	uint8_t op_size = ops [ 0 ].size;
@@ -768,30 +709,6 @@ void bsf ( capstone::Instruction& instr, EmulationContext& state, InstructionEff
 		state.set_reg ( dst_reg, static_cast< uint64_t > ( index ), op_size, effect );
 		state.cpu->cpu_flags.flags.ZF = 0;
 	}
-
-	if ( old_zf != state.cpu->cpu_flags.flags.ZF ) {
-		state.log_flag_change ( effect, "ZF", old_zf, state.cpu->cpu_flags.flags.ZF );
-	}
-
-	uint64_t old_cf = state.cpu->cpu_flags.flags.CF;
-	state.cpu->cpu_flags.flags.CF = 0;
-	if ( old_cf != 0 ) state.log_flag_change ( effect, "CF", old_cf, 0 );
-
-	uint64_t old_of = state.cpu->cpu_flags.flags.OF;
-	state.cpu->cpu_flags.flags.OF = 0;
-	if ( old_of != 0 ) state.log_flag_change ( effect, "OF", old_of, 0 );
-
-	uint64_t old_sf = state.cpu->cpu_flags.flags.SF;
-	state.cpu->cpu_flags.flags.SF = 0;
-	if ( old_sf != 0 ) state.log_flag_change ( effect, "SF", old_sf, 0 );
-
-	uint64_t old_af = state.cpu->cpu_flags.flags.AF;
-	state.cpu->cpu_flags.flags.AF = 0;
-	if ( old_af != 0 ) state.log_flag_change ( effect, "AF", old_af, 0 );
-
-	uint64_t old_pf = state.cpu->cpu_flags.flags.PF;
-	state.cpu->cpu_flags.flags.PF = 0;
-	if ( old_pf != 0 ) state.log_flag_change ( effect, "PF", old_pf, 0 );
 }
 
 void helpers::bind_bit ( ) {

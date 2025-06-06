@@ -21,6 +21,8 @@
   <ItemGroup>
     <ClInclude Include="capstone++.hpp" />
     <ClInclude Include="context.hpp" />
+    <ClInclude Include="iced.hpp" />
+    <ClInclude Include="iced_internal.hpp" />
     <ClInclude Include="module_loader.hpp" />
     <ClInclude Include="portable_executable.hpp" />
     <ClInclude Include="types.hpp" />

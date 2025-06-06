@@ -2,7 +2,9 @@
 
 #include "pch.hpp"
 #include <cfenv>
+#define USE_FLAG_LOGGER() auto _ = FlagLogger ( this, effect )
 void EmulationContext::update_flags_add ( uint64_t a, uint64_t b, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	const auto ua = a & mask;
 	const auto ub = b & mask;
@@ -12,23 +14,17 @@ void EmulationContext::update_flags_add ( uint64_t a, uint64_t b, uint8_t op_siz
 	int64_t sb = static_cast< int64_t >( b << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	int64_t sres = static_cast< int64_t >( res << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
+
 	flags.CF = ( res < ua );
 	flags.ZF = ( res == 0 );
 	flags.PF = std::popcount ( res & 0xFF ) % 2 == 0;
 	flags.AF = ( ( ua & 0xF ) + ( ub & 0xF ) ) > 0xF;
 	flags.SF = ( res >> ( op_size * 8 - 1 ) ) & 1;
 	flags.OF = ( ( sa > 0 && sb > 0 && sres < 0 ) || ( sa < 0 && sb < 0 && sres > 0 ) );
-
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_adc ( uint64_t dst, uint64_t src, uint64_t carry, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	const auto udst = dst & mask;
 	const auto usrc = src & mask;
@@ -41,7 +37,6 @@ void EmulationContext::update_flags_adc ( uint64_t dst, uint64_t src, uint64_t c
 	int64_t ssrc = static_cast< int64_t >( usrc << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	int64_t sres = static_cast< int64_t >( res << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
 
 	flags.CF = ( temp_res < udst ) || ( ( temp_res + ucarry ) < temp_res ); // Check carry out from dst+src OR from (dst+src)+carry
 	flags.ZF = ( res == 0 );
@@ -55,16 +50,10 @@ void EmulationContext::update_flags_adc ( uint64_t dst, uint64_t src, uint64_t c
 	bool src_sign = ( ssrc >= 0 );
 	bool res_sign = ( sres >= 0 );
 	flags.OF = ( dst_sign == src_sign ) && ( dst_sign != res_sign );
-
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_sub ( uint64_t a, uint64_t b, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	const auto ua = a & mask;
 	const auto ub = b & mask;
@@ -74,7 +63,6 @@ void EmulationContext::update_flags_sub ( uint64_t a, uint64_t b, uint8_t op_siz
 	const auto sb = static_cast< int64_t >( ub << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	const auto sres = static_cast< int64_t >( res << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
 
 	flags.CF = ( ua < ub );
 	flags.ZF = ( res == 0 );
@@ -82,17 +70,10 @@ void EmulationContext::update_flags_sub ( uint64_t a, uint64_t b, uint8_t op_siz
 	flags.AF = ( ( ( ua ^ ub ^ res ) & 0x10 ) != 0 );
 	flags.SF = ( sres < 0 );
 	flags.OF = ( ( sa >= 0 && sb < 0 && sres < 0 ) || ( sa < 0 && sb >= 0 && sres >= 0 ) );
-
-
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_shl ( uint64_t val, uint64_t raw_count, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t uval = val & mask;
 	uint8_t size_in_bits = op_size * 8;
@@ -114,8 +95,6 @@ void EmulationContext::update_flags_shl ( uint64_t val, uint64_t raw_count, uint
 		}
 	}
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
-
 	if ( effective_count == 0 ) {
 		flags.CF = 0;
 	}
@@ -137,16 +116,10 @@ void EmulationContext::update_flags_shl ( uint64_t val, uint64_t raw_count, uint
 	else {
 		flags.OF = 0;
 	}
-
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF && flags.AF == 0 && old_AF != 0 ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_sar ( uint64_t val, uint64_t raw_count, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t uval_masked = val & mask;
 	uint8_t size_in_bits = op_size * 8;
@@ -175,7 +148,6 @@ void EmulationContext::update_flags_sar ( uint64_t val, uint64_t raw_count, uint
 		}
 	}
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
 
 	if ( effective_count == 0 ) {
 		flags.CF = 0;
@@ -192,16 +164,10 @@ void EmulationContext::update_flags_sar ( uint64_t val, uint64_t raw_count, uint
 	flags.ZF = ( res == 0 );
 	flags.PF = std::popcount ( static_cast< uint8_t >( res & 0xFF ) ) % 2 == 0;
 	flags.AF = 0;
-
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF && flags.AF == 0 && old_AF != 0 ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_inc ( uint64_t val, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t uval = static_cast< uint64_t >( val ) & mask;
 	uint64_t res = ( uval + 1 ) & mask;
@@ -209,24 +175,16 @@ void EmulationContext::update_flags_inc ( uint64_t val, uint8_t op_size, Instruc
 	int64_t sval = static_cast< int64_t >( uval << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	int64_t sres = static_cast< int64_t >( res << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
 
-	// OF is set if result sign is opposite operand sign, specifically for positive -> negative overflow
 	flags.OF = ( sval >= 0 && sres < 0 );
 	flags.SF = ( res >> ( op_size * 8 - 1 ) ) & 1;
 	flags.ZF = ( res == 0 );
 	flags.PF = std::popcount ( res & 0xFF ) % 2 == 0;
 	flags.AF = ( ( uval & 0xF ) + 1 ) > 0xF;
-	// INC does not affect CF
-
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_dec ( uint64_t val, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t uval = static_cast< uint64_t >( val ) & mask;
 	uint64_t res = ( uval - 1 ) & mask;
@@ -234,24 +192,16 @@ void EmulationContext::update_flags_dec ( uint64_t val, uint8_t op_size, Instruc
 	int64_t sval = static_cast< int64_t >( uval << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	int64_t sres = static_cast< int64_t >( res << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
 
-	// OF is set if result sign is opposite operand sign, specifically for negative -> positive overflow
 	flags.OF = ( sval < 0 && sres >= 0 );
 	flags.SF = ( res >> ( op_size * 8 - 1 ) ) & 1;
 	flags.ZF = ( res == 0 );
 	flags.PF = std::popcount ( res & 0xFF ) % 2 == 0;
 	flags.AF = ( ( uval & 0xF ) < 1 ); // Borrow from bit 4
-	// DEC does not affect CF
-
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_mul ( uint64_t a, uint64_t b, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	const auto ua = a & mask;
 	const auto ub = b & mask;
@@ -259,47 +209,31 @@ void EmulationContext::update_flags_mul ( uint64_t a, uint64_t b, uint8_t op_siz
 
 	uint128_t full_res_128 = uint128_t ( ua ) * uint128_t ( ub );
 
-	// 2. Create a mask for the operand size (works for 1, 2, 4 bytes)
-	//    For op_size 8, we need the full 64 bits, so use a specific mask.
 	uint128_t mask_128 = 0;
 	int shift_amount = op_size * 8;
 
 	if ( op_size == 8 ) {
-		mask_128 = 0xFFFFFFFFFFFFFFFFULL; // Mask for 64 bits
+		mask_128 = 0xFFFFFFFFFFFFFFFFULL;
 	}
 	else {
-		mask_128 = ( uint128_t ( 1 ) << shift_amount ) - 1; // Mask for op_size*8 bits
+		mask_128 = ( uint128_t ( 1 ) << shift_amount ) - 1;
 	}
 
-	// 3. Extract the lower part using the mask
 	res_low = static_cast< uint64_t >( full_res_128 & mask_128 );
-
-	// 4. Extract the higher part by shifting down and then masking
 	res_high = static_cast< uint64_t >( ( full_res_128 >> shift_amount ) & mask_128 );
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_OF = flags.OF;
-	// For unsigned MUL, CF and OF are set if the upper half of the full result is non-zero
+
 	flags.CF = ( res_high != 0 );
 	flags.OF = flags.CF;
 
-	// SF, ZF, PF, AF are undefined after MUL
 	flags.SF = 0;
 	flags.ZF = 0;
 	flags.PF = 0;
 	flags.AF = 0;
-
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	// Log undefined flags being cleared if needed for debugging, though not strictly necessary
-	log_flag_change ( effect, "SF", 1, 0 ); // Assume old value could be 1
-	log_flag_change ( effect, "ZF", 1, 0 );
-	log_flag_change ( effect, "PF", 1, 0 );
-	log_flag_change ( effect, "AF", 1, 0 );
 }
 
 void EmulationContext::update_flags_div ( uint64_t dividend, uint64_t divisor, uint8_t op_size, InstructionEffect& effect ) {
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_OF = flags.OF, old_SF = flags.SF, old_ZF = flags.ZF, old_AF = flags.AF, old_PF = flags.PF;
 
 	if ( divisor == 0 ) {
 		effect.push_to_changes ( "Division by zero occurred (flags undefined)" );
@@ -308,25 +242,20 @@ void EmulationContext::update_flags_div ( uint64_t dividend, uint64_t divisor, u
 }
 
 void EmulationContext::update_flags_and ( uint64_t a, uint64_t b, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t res = ( a & b ) & mask;
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_CF = flags.CF, old_OF = flags.OF;
 	int64_t sres = static_cast< int64_t >( res << ( 64 - op_size * 8 ) ) >> ( 64 - op_size * 8 );
 	flags.SF = sres < 0;
 	flags.ZF = ( res == 0 );
 	flags.PF = std::popcount ( res & 0xFF ) % 2 == 0;
 	flags.CF = 0;
 	flags.OF = 0;
-
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
 }
 
 void EmulationContext::update_flags_or ( uint64_t a, uint64_t b, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t res = ( a | b ) & mask;
 	auto& flags = cpu->cpu_flags.flags;
@@ -337,15 +266,10 @@ void EmulationContext::update_flags_or ( uint64_t a, uint64_t b, uint8_t op_size
 	flags.PF = std::popcount ( res & 0xFF ) % 2 == 0;
 	flags.CF = 0;
 	flags.OF = 0;
-
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
 }
 
 void EmulationContext::update_flags_xor ( uint64_t a, uint64_t b, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t res = ( a ^ b ) & mask;
 	auto& flags = cpu->cpu_flags.flags;
@@ -357,12 +281,6 @@ void EmulationContext::update_flags_xor ( uint64_t a, uint64_t b, uint8_t op_siz
 	flags.OF = 0;
 	// AF is undefined
 	flags.AF = 0; // Explicitly clear
-
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
 }
 
 void EmulationContext::update_flags_not ( uint64_t val, uint8_t op_size, InstructionEffect& effect ) {
@@ -370,6 +288,7 @@ void EmulationContext::update_flags_not ( uint64_t val, uint8_t op_size, Instruc
 }
 
 void EmulationContext::update_flags_shr ( uint64_t val, uint64_t raw_count, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t uval = val & mask;
 	uint8_t size_in_bits = op_size * 8;
@@ -391,7 +310,6 @@ void EmulationContext::update_flags_shr ( uint64_t val, uint64_t raw_count, uint
 		}
 	}
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_CF = flags.CF, old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_OF = flags.OF, old_AF = flags.AF;
 
 	if ( effective_count == 0 ) {
 		flags.CF = 0;
@@ -414,20 +332,14 @@ void EmulationContext::update_flags_shr ( uint64_t val, uint64_t raw_count, uint
 	else {
 		flags.OF = 0;
 	}
-
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
-	if ( old_AF != flags.AF && flags.AF == 0 && old_AF != 0 ) log_flag_change ( effect, "AF", old_AF, flags.AF );
 }
 
 void EmulationContext::update_flags_test ( uint64_t a, uint64_t b, uint8_t op_size, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	GET_OPERAND_MASK ( mask, op_size );
 	uint64_t res = ( a & b ) & mask;
 	auto& flags = cpu->cpu_flags.flags;
-	uint64_t old_PF = flags.PF, old_ZF = flags.ZF, old_SF = flags.SF, old_CF = flags.CF, old_OF = flags.OF;
+
 	flags.SF = ( res >> ( op_size * 8 - 1 ) ) & 1;
 	flags.ZF = ( res == 0 );
 	flags.PF = std::popcount ( res & 0xFF ) % 2 == 0;
@@ -435,12 +347,6 @@ void EmulationContext::update_flags_test ( uint64_t a, uint64_t b, uint8_t op_si
 	flags.OF = 0;
 	// AF is undefined
 	flags.AF = 0; // Explicitly clear
-
-	if ( old_PF != flags.PF ) log_flag_change ( effect, "PF", old_PF, flags.PF );
-	if ( old_ZF != flags.ZF ) log_flag_change ( effect, "ZF", old_ZF, flags.ZF );
-	if ( old_SF != flags.SF ) log_flag_change ( effect, "SF", old_SF, flags.SF );
-	if ( old_CF != flags.CF ) log_flag_change ( effect, "CF", old_CF, flags.CF );
-	if ( old_OF != flags.OF ) log_flag_change ( effect, "OF", old_OF, flags.OF );
 }
 
 void EmulationContext::log_mxcsr_flag_change ( InstructionEffect& effect, const char* flag_name, uint32_t old_val, uint32_t new_val ) {
@@ -544,6 +450,7 @@ template void EmulationContext::update_mxcsr_arithmetic<double> ( double, double
 // --- Templated Compare Updater ---
 template<std::floating_point T>
 void EmulationContext::update_flags_for_compare ( T a, T b, bool is_unordered_quiet, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	auto& mxcsr = cpu->cpu_flags.mxcsr;
 	uint32_t old_rflags = get_eflags ( );
 	uint32_t old_mxcsr_flags = *(uint32_t*)&mxcsr;
@@ -579,12 +486,6 @@ void EmulationContext::update_flags_for_compare ( T a, T b, bool is_unordered_qu
 		// mxcsr.IE remains 0 for ordered
 	}
 
-	if ( flags.ZF != ( ( old_rflags >> 6 ) & 1 ) ) log_flag_change ( effect, "ZF", ( old_rflags >> 6 ) & 1, flags.ZF );
-	if ( flags.PF != ( ( old_rflags >> 2 ) & 1 ) ) log_flag_change ( effect, "PF", ( old_rflags >> 2 ) & 1, flags.PF );
-	if ( flags.CF != ( ( old_rflags >> 0 ) & 1 ) ) log_flag_change ( effect, "CF", ( old_rflags >> 0 ) & 1, flags.CF );
-	if ( ( ( old_rflags >> 11 ) & 1 ) != 0 ) log_flag_change ( effect, "OF", ( old_rflags >> 11 ) & 1, 0 );
-	if ( ( ( old_rflags >> 7 ) & 1 ) != 0 ) log_flag_change ( effect, "SF", ( old_rflags >> 7 ) & 1, 0 );
-	if ( ( ( old_rflags >> 4 ) & 1 ) != 0 ) log_flag_change ( effect, "AF", ( old_rflags >> 4 ) & 1, 0 );
 	if ( mxcsr.IE != ( ( old_mxcsr_flags >> 0 ) & 1 ) ) log_mxcsr_flag_change ( effect, "IE", ( old_mxcsr_flags >> 0 ) & 1, mxcsr.IE );
 }
 // Explicit instantiations

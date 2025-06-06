@@ -246,6 +246,7 @@ void movsx ( capstone::Instruction& instr, EmulationContext& state, InstructionE
 }
 
 void sahf ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	auto ah = state.get_reg ( X86_REG_AH, 1 );
 	uint8_t ah_val = static_cast< uint8_t >( ah );
 	auto& flags = state.cpu->cpu_flags.flags;
@@ -254,7 +255,6 @@ void sahf ( capstone::Instruction& instr, EmulationContext& state, InstructionEf
 	flags.AF = ( ( ah_val >> 4 ) & 1 );
 	flags.PF = ( ( ah_val >> 2 ) & 1 );
 	flags.CF = ( ah_val & 1 );
-	effect.push_to_changes ( state, std::format ( "Flags updated from AH: {:x}h", ah_val ) );
 }
 
 void lahf ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
@@ -325,50 +325,6 @@ void popfq ( capstone::Instruction& instr, EmulationContext& state, InstructionE
 
 	state.set_rflags ( val, effect );
 }
-
-//void movsb ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
-//	bool is_rep = instr.is_rep ( );
-//	auto rcx = state.get_reg ( X86_REG_RCX, 8 );
-//	auto rsi = state.get_reg ( X86_REG_RSI, 8 );
-//	auto rdi = state.get_reg ( X86_REG_RDI, 8 );
-//	bool df = state.cpu->cpu_flags.flags.DF & 0; // Direction flag: 0 = increment, 1 = decrement
-//
-//	int64_t count = is_rep ? rcx : 1; // REP uses RCX, non-REP moves 1 byte
-//	int64_t src_addr = rsi;
-//	int64_t dst_addr = rdi;
-//	int64_t step = df ? -1 : 1; // Step size based on DF
-//
-//	if ( count < 0 ) {
-//		effect.push_to_changes ( state, std::format ( "Invalid RCX count for REP MOVSB: {:x}h", count ) );
-//		return;
-//	}
-//
-//	for ( int64_t i = 0; i < count; ++i ) {
-//		uint8_t byte = state.get_memory ( src_addr + i * step, 1 );
-//
-//		state.set_memory ( dst_addr + i * step, byte, 8, effect );
-//		effect.modified_mem.insert ( dst_addr + i * step );
-//	}
-//
-//	// Update registers
-//	uint64_t new_rsi = src_addr + count * step;
-//	uint64_t new_rdi = dst_addr + count * step;
-//	state.set_reg ( X86_REG_RSI, new_rsi, 8, effect );
-//	state.set_reg ( X86_REG_RDI, new_rdi, 8, effect );
-//	if ( is_rep ) {
-//		state.set_reg ( X86_REG_RCX, 0, 8, effect );
-//	} // Non-REP doesn't affect RCX
-//
-//	// Log changes
-//	effect.push_to_changes ( state, std::format ( "Moved {} byte(s) from [{:016x}h] to [{:016x}h]", count, src_addr, dst_addr ) );
-//	effect.push_to_changes ( state, std::format ( "RSI: {:016x}h -> {:016x}h", src_addr, new_rsi ) );
-//	effect.push_to_changes ( state, std::format ( "RDI: {:016x}h -> {:016x}h", dst_addr, new_rdi ) );
-//	if ( is_rep ) {
-//		effect.push_to_changes ( state, std::format ( "RCX: {:016x}h -> 0h", count ) );
-//	}
-//}
-
-
 
 void movups ( capstone::Instruction& instr,
 						EmulationContext& ctx,
@@ -559,6 +515,7 @@ void cmpxchg ( capstone::Instruction& instr,
 
 
 void cmpxchg16b ( capstone::Instruction& instr, EmulationContext& state, InstructionEffect& effect ) {
+	USE_FLAG_LOGGER ( );
 	const cs_x86_op* ops = instr.operands ( );
 
 	if ( ops [ 0 ].type != X86_OP_MEM ) {
@@ -607,11 +564,7 @@ void cmpxchg16b ( capstone::Instruction& instr, EmulationContext& state, Instruc
 														 addr, has_lock ? ", lock" : "" ) );
 	}
 
-	uint64_t old_ZF = state.cpu->cpu_flags.flags.ZF;
 	state.cpu->cpu_flags.flags.ZF = equal ? 1 : 0;
-	if ( old_ZF != state.cpu->cpu_flags.flags.ZF ) {
-		state.log_flag_change ( effect, "ZF", old_ZF, state.cpu->cpu_flags.flags.ZF );
-	}
 }
 
 

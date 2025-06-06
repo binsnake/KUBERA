@@ -3,7 +3,7 @@
 #include <shared/context.hpp>
 #include <shared/types.hpp>
 #include <bit>
-
+#define USE_FLAG_LOGGER() auto _ = FlagLogger ( &state, effect )
 #define KB_PREFIX(name) kb_##name
 #define BIND(x) handlers::x = std::bind ( x, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3 )
 #define BIND2(x, y) handlers::x = std::bind ( y, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3 )

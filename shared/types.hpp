@@ -511,29 +511,34 @@ struct MXCSRFlags {
 };
 
 struct RFLAGS {
-  uint64_t CF : 1;  // Bit 0: Carry Flag
-  uint64_t reserved1 : 1;  // Bit 1: Always 1
-  uint64_t PF : 1;  // Bit 2: Parity Flag
-  uint64_t reserved2 : 1;  // Bit 3: Reserved (0)
-  uint64_t AF : 1;  // Bit 4: Auxiliary Carry Flag
-  uint64_t reserved3 : 1;  // Bit 5: Reserved (0)
-  uint64_t ZF : 1;  // Bit 6: Zero Flag
-  uint64_t SF : 1;  // Bit 7: Sign Flag
-  uint64_t TF : 1;  // Bit 8: Trap Flag
-  uint64_t IF : 1;  // Bit 9: Interrupt Enable Flag (if is reserved, so if_)
-  uint64_t DF : 1;  // Bit 10: Direction Flag
-  uint64_t OF : 1;  // Bit 11: Overflow Flag
-  uint64_t IOPL : 2;  // Bits 12-13: I/O Privilege Level
-  uint64_t NT : 1;  // Bit 14: Nested Task
-  uint64_t reserved4 : 1;  // Bit 15: Reserved (0)
-  uint64_t RF : 1;  // Bit 16: Resume Flag
-  uint64_t VM : 1;  // Bit 17: Virtual-8086 Mode
-  uint64_t AC : 1;  // Bit 18: Alignment Check
-  uint64_t VIF : 1;  // Bit 19: Virtual Interrupt Flag
-  uint64_t VIP : 1;  // Bit 20: Virtual Interrupt Pending
-  uint64_t ID : 1;  // Bit 21: Identification Flag
-  uint64_t reserved5 : 10; // Bits 22-31: Reserved (0)
-  uint64_t reserved6 : 32; // Bits 32-63: Reserved (0)
+  union {
+    struct {
+      uint64_t CF : 1;  // Bit 0: Carry Flag
+      uint64_t reserved1 : 1;  // Bit 1: Always 1
+      uint64_t PF : 1;  // Bit 2: Parity Flag
+      uint64_t reserved2 : 1;  // Bit 3: Reserved (0)
+      uint64_t AF : 1;  // Bit 4: Auxiliary Carry Flag
+      uint64_t reserved3 : 1;  // Bit 5: Reserved (0)
+      uint64_t ZF : 1;  // Bit 6: Zero Flag
+      uint64_t SF : 1;  // Bit 7: Sign Flag
+      uint64_t TF : 1;  // Bit 8: Trap Flag
+      uint64_t IF : 1;  // Bit 9: Interrupt Enable Flag (if is reserved, so if_)
+      uint64_t DF : 1;  // Bit 10: Direction Flag
+      uint64_t OF : 1;  // Bit 11: Overflow Flag
+      uint64_t IOPL : 2;  // Bits 12-13: I/O Privilege Level
+      uint64_t NT : 1;  // Bit 14: Nested Task
+      uint64_t reserved4 : 1;  // Bit 15: Reserved (0)
+      uint64_t RF : 1;  // Bit 16: Resume Flag
+      uint64_t VM : 1;  // Bit 17: Virtual-8086 Mode
+      uint64_t AC : 1;  // Bit 18: Alignment Check
+      uint64_t VIF : 1;  // Bit 19: Virtual Interrupt Flag
+      uint64_t VIP : 1;  // Bit 20: Virtual Interrupt Pending
+      uint64_t ID : 1;  // Bit 21: Identification Flag
+      uint64_t reserved5 : 10; // Bits 22-31: Reserved (0)
+      uint64_t reserved6 : 32; // Bits 32-63: Reserved (0)
+    };
+    uint64_t value;
+  };
 };
 
 struct CallFrame {

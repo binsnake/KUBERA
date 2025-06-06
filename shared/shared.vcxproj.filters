@@ -30,6 +30,12 @@
     <ClInclude Include="module_loader.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="iced.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="iced_internal.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\portable_executable.cpp">
