@@ -1,5 +1,4 @@
 #include "../KUBERA.hpp"
-#include <context/emulator.hpp>
 
 using namespace kubera;
 std::array<KubRegister, static_cast< std::size_t > ( Register::DontUse0 )> reg_map;
@@ -395,11 +394,11 @@ void KUBERA::set_xmm_double ( Register reg, double value ) {
 	current_raw = ( current_raw & ~uint128_t ( 0xFFFFFFFFFFFFFFFF ) ) | uint128_t ( new_low_bits );
 	set_xmm_raw ( reg, current_raw );
 }
-
+#include <print>
 void unsupported_instruction ( const iced::Instruction& instr, KUBERA& context ) {
-	std::printf ( "[KUBERA] Unsupported instruction {}, skipping.", instr.to_string ( ) );
+	std::println ( "[KUBERA] Unsupported instruction {}, skipping.", instr.to_string ( ) );
 }
-
+#include <context/emulator.hpp>
 #define SET_HANDLER(x, y) instruction_dispatch_table->at ( static_cast< size_t >( x) ) = y
 void map_handlers ( ) {
 	SET_HANDLER ( Mnemonic::Add, handlers::add );
