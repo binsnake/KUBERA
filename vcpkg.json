@@ -1,20 +1,6 @@
 {
   "dependencies": [
     "boost-multiprecision",
-    {
-      "name": "capstone",
-      "features": [
-        "x86"
-      ]
-    },
-    {
-      "name": "imgui",
-      "features": [
-        "dx11-binding",
-        "win32-binding"
-      ]
-    },
-    "zlib",
     "asmjit"
   ]
 }
