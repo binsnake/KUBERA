@@ -291,25 +291,25 @@ void handlers::ldmxcsr ( const iced::Instruction& instr, KUBERA& context ) {
 /// XGETBV-Get Value of Extended Control Register
 /// Reads the specified extended control register (XCR) into EDX:EAX (high:low 32 bits).
 void handlers::xgetbv ( const iced::Instruction& instr, KUBERA& context ) {
-	const uint32_t ecx_in = static_cast< uint32_t >( context.get_reg ( Register::RCX, 4 ) );
+	const uint32_t ecx_in = context.get_reg_internal<KubRegister::RCX, Register::ECX, uint32_t> ( );
 	const uint64_t xcr_val = _xgetbv ( ecx_in );
 	const uint32_t eax_out = static_cast< uint32_t >( xcr_val & 0xFFFFFFFF );
 	const uint32_t edx_out = static_cast< uint32_t >( xcr_val >> 32 );
-	context.set_reg ( Register::RAX, eax_out, 4 );
-	context.set_reg ( Register::RDX, edx_out, 4 );
+	context.set_reg_internal<KubRegister::RAX, Register::EAX> ( eax_out );
+	context.set_reg_internal<KubRegister::RDX, Register::EDX> ( edx_out );
 }
 
 /// CPUID-CPU Identification
 /// Returns processor identification and feature information in RAX, RBX, RCX, and RDX based on the input in RAX and RCX.
 void handlers::cpuid ( const iced::Instruction& instr, KUBERA& context ) {
-	const uint32_t eax_in = context.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t>();
-	const uint32_t ecx_in = context.get_reg_internal<KubRegister::RCX, Register::RCX, uint32_t>();
+	const uint32_t eax_in = context.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( );
+	const uint32_t ecx_in = context.get_reg_internal<KubRegister::RCX, Register::RCX, uint32_t> ( );
 
 	std::array<int, 4> cpu_info;
 	__cpuidex ( cpu_info.data ( ), eax_in, ecx_in );
 
-	context.set_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( cpu_info [ 0 ] );
-	context.set_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( cpu_info [ 1 ] );
-	context.set_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( cpu_info [ 2 ] );
-	context.set_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( cpu_info [ 3 ] );
+	context.set_reg_internal<KubRegister::RAX, Register::RAX> ( cpu_info [ 0 ] );
+	context.set_reg_internal<KubRegister::RAX, Register::RAX> ( cpu_info [ 1 ] );
+	context.set_reg_internal<KubRegister::RAX, Register::RAX> ( cpu_info [ 2 ] );
+	context.set_reg_internal<KubRegister::RAX, Register::RAX> ( cpu_info [ 3 ] );
 }

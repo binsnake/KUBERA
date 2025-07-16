@@ -22,16 +22,16 @@ namespace kubera
 	using InstructionHandlerList = std::array<InstructionHandler, static_cast< std::size_t > ( Mnemonic::COUNT )>;
 
 	// Optional function to check memory read permissions
-	inline std::optional<std::function<bool ( uint64_t, size_t )>> platform_memory_read_check = std::nullopt;
+	inline bool ( *platform_memory_read_check )( uint64_t, size_t ) = nullptr;
 
 	// Optional function to check memory write permissions
-	inline std::optional<std::function<bool ( uint64_t, size_t )>> platform_memory_write_check = std::nullopt;
+	inline bool ( *platform_memory_write_check )( uint64_t, size_t ) = nullptr;
 
 	// Optional function to check memory executable permissions
-	inline std::optional<std::function<bool ( uint64_t )>> platform_memory_executable_check = std::nullopt;
+	inline bool ( *platform_memory_executable_check )( uint64_t ) = nullptr;
 
 	// Optional function to override target address
-	inline std::optional<std::function<bool ( uint64_t )>> platform_target_override = std::nullopt;
+	inline bool ( *platform_target_override )( uint64_t ) = nullptr;
 
 	// Pointer to the instruction dispatch table
 	inline std::unique_ptr<InstructionHandlerList> instruction_dispatch_table = nullptr;
@@ -198,8 +198,8 @@ namespace kubera
 		template <typename Type>
 		Type get_memory ( uint64_t address ) const {
 			// TODO: Implement proper validation
-			if ( platform_memory_read_check.has_value ( ) ) {
-				if ( !platform_memory_read_check.value ( )( address, sizeof ( Type ) ) ) {
+			if ( platform_memory_read_check ) {
+				if ( !platform_memory_read_check( address, sizeof ( Type ) ) ) {
 					// TODO: Implement exception handling
 					return 0ULL;
 				}
@@ -228,8 +228,8 @@ namespace kubera
 		template <typename Type>
 		void set_memory ( uint64_t address, Type val ) {
 			// TODO: Implement proper validation
-			if ( platform_memory_write_check.has_value ( ) ) {
-				if ( !platform_memory_write_check.value ( )( address, sizeof ( Type ) ) ) {
+			if ( platform_memory_write_check ) {
+				if ( !platform_memory_write_check ( address, sizeof ( Type ) ) ) {
 					// TODO: Implement exception handling
 					return;
 				}
