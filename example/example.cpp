@@ -48,7 +48,7 @@ void run_emulation_loop ( kubera::KUBERA& ctx, const uint8_t* test_fn, size_t te
 	auto start_time = std::chrono::high_resolution_clock::now ( );
 	while ( true ) {
 		auto current_time = std::chrono::high_resolution_clock::now ( );
-		auto elapsed_seconds = std::chrono::duration_cast< std::chrono::duration<double> >(
+		auto elapsed_seconds = std::chrono::duration_cast< std::chrono::duration<double> > (
 				current_time - start_time ).count ( );
 
 		if ( elapsed_seconds >= 10.0 ) {
@@ -56,18 +56,19 @@ void run_emulation_loop ( kubera::KUBERA& ctx, const uint8_t* test_fn, size_t te
 		}
 
 		ctx.decoder->reconfigure ( test_fn, test_fn_size, 0 );
-		ctx.set_reg ( Register::RCX, 0xFFAA, 4 );
-		ctx.set_reg ( Register::RDX, 0x0055, 4 );
+		ctx.set_reg_internal<kubera::KubRegister::RCX, Register::RCX, uint32_t> ( 0xFFAA );
+		ctx.set_reg_internal<kubera::KubRegister::RDX, Register::RDX, uint32_t> ( 0x0055 );
 		ctx.get_flags ( ).value = flags_before_running;
-		while ( ctx.decoder->can_decode ( ) ) {
+		for ( auto i = 0u; i < 4u; ++i ) {
 			auto instr = ctx.decoder->decode ( );
 			ctx.execute ( instr );
-			++instruction_count;
 		}
+
+		instruction_count += 4;
 	}
 
 	auto end_time = std::chrono::high_resolution_clock::now ( );
-	auto total_seconds = std::chrono::duration_cast< std::chrono::duration<double> >(
+	auto total_seconds = std::chrono::duration_cast< std::chrono::duration<double> > (
 			end_time - start_time ).count ( );
 	double instructions_per_second = instruction_count / total_seconds;
 
@@ -83,7 +84,9 @@ int main ( ) {
 	std::println ( "[+] Initializing KUBERA - Windows example" );
 
 	kubera::KUBERA ctx {};
-	//run_emulation_loop ( ctx, benchmark_fn, sizeof ( benchmark_fn ), __readeflags ( ) );
+	run_emulation_loop ( ctx, benchmark_fn, sizeof ( benchmark_fn ), __readeflags ( ) );
+	std::getchar ( );
+	return 1;
 	ctx.set_reg ( Register::RCX, 0xFFAA, 4 );
 	ctx.set_reg ( Register::RDX, 0x0055, 4 );
 
@@ -93,10 +96,10 @@ int main ( ) {
 		std::println ( "Failed to allocate memory" ); std::getchar ( );
 		return -1;
 	}
-	memcpy ( alloc, test_fn, sizeof ( test_fn ));
+	memcpy ( alloc, test_fn, sizeof ( test_fn ) );
 	VirtualProtect ( alloc, 0x1000, PAGE_EXECUTE_READ, &old );
 	const auto flags_before_running = __readeflags ( );
-	const auto expected_value = 
+	const auto expected_value =
 		reinterpret_cast< uint64_t ( * )( uint64_t, uint64_t ) >( alloc ) ( 0xFFAA, 0x0055 );
 
 	const auto native_flags = __readeflags ( );
@@ -110,7 +113,7 @@ int main ( ) {
 	}
 
 	const auto emu_value = ctx.get_reg ( Register::RAX );
-	const auto emu_flags = ctx.get_flags().value;
+	const auto emu_flags = ctx.get_flags ( ).value;
 	std::println ( "RAX    => [EMU: {:#x}] = [HW: {:#x}]", emu_value, expected_value );
 	std::println ( "EFLAGS => [EMU: {:#x}] = [HW: {:#x}]", emu_flags, native_flags );
 

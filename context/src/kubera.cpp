@@ -10,7 +10,7 @@ KubRegister map_register ( Register reg ) {
 
 void kubera::KUBERA::handle_ip_switch ( uint64_t target ) {
 	if ( platform_memory_executable_check ) {
-		if ( !platform_memory_executable_check( target ) ) {
+		if ( !platform_memory_executable_check ( target ) ) {
 			// !TODO(exception)
 			return;
 		}
