@@ -271,10 +271,8 @@ namespace kubera
 		// Sets XMM register value as double
 		void set_xmm_double ( Register reg, double value );
 
-	private:
-
 		template <Register reg, size_t size>
-		constexpr uint64_t get_access_mask_internal ( ) const noexcept {
+		static constexpr uint64_t get_access_mask_internal ( ) noexcept {
 			switch ( size ) {
 				case 8:
 					return 0xFFFFFFFFFFFFFFFFULL;
@@ -293,7 +291,7 @@ namespace kubera
 		}
 
 		template <Register reg, size_t size>
-		constexpr uint8_t get_access_shift_internal ( ) const noexcept {
+		static constexpr uint8_t get_access_shift_internal ( ) noexcept {
 			if constexpr ( reg == Register::AH || reg == Register::BH || reg == Register::CH || reg == Register::DH ) {
 				return 8;
 			}
@@ -303,7 +301,7 @@ namespace kubera
 
 		template <KubRegister reg, Register iced_reg, typename Type>
 		Type get_reg_internal ( ) {
-			if constexpr ( reg = KubRegister::RIP ) {
+			if constexpr ( reg == KubRegister::RIP ) {
 				const auto current_instr_ip = decoder->last_successful_ip ( );
 				const auto current_instr_len = decoder->last_successful_length ( );
 				return current_instr_ip + current_instr_len;
