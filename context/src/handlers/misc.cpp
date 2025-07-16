@@ -5,7 +5,7 @@
 using namespace kubera;
 /// NOP - No operation
 void handlers::nop ( const iced::Instruction& instr, KUBERA& context ) {
-
+	// No-op in emulation
 }
 
 /// PREFETCHW - Prefetch Write
