@@ -11,12 +11,21 @@
 #include "configuration.hpp"
 #include "types.hpp"
 
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
+
 #define GET_OPERAND_MASK(y) (~0ULL >> (64 - (y) * 8))
+#define ALIGN_DOWN(var, align) var & ~(align - 1)
 
 namespace kubera
 {
 	// Type alias for instruction handler function
-	using InstructionHandler = void (*) ( const iced::Instruction&, class KUBERA& state );
+	using InstructionHandler = void ( * ) ( const iced::Instruction&, class KUBERA& state );
 
 	// Type alias for array of instruction handlers
 	using InstructionHandlerList = std::array<InstructionHandler, static_cast< std::size_t > ( Mnemonic::COUNT )>;
@@ -35,6 +44,7 @@ namespace kubera
 
 	// Pointer to the instruction dispatch table
 	inline std::unique_ptr<InstructionHandlerList> instruction_dispatch_table = nullptr;
+
 	class KUBERA {
 	private:
 		std::unique_ptr<CPU> cpu = nullptr;
@@ -80,6 +90,27 @@ namespace kubera
 			return cpu->registers [ KubRegister::RIP ];
 		}
 
+		// Emulates the instruction and updates the decoder
+		bool reconfigure ( uint64_t new_rip ) {
+			auto& current_rip = rip ( ) = new_rip;
+			decoder->reconfigure ( reinterpret_cast< const uint8_t* >( current_rip ), 15, current_rip );
+		}
+
+		// Allocate Type on stack
+		template <typename Type>
+		Type* allocate_on_stack ( ) {
+			uint64_t stack = get_reg_internal<KubRegister::RSP, Register::RSP, uint64_t> ( );
+			stack = ALIGN_DOWN ( stack - sizeof ( Type ), std::max ( alignof( Type ), alignof( void* ) ) );
+			set_reg_internal<KubRegister::RSP, Register::RSP, uint64_t> ( stack );
+			return reinterpret_cast< Type* >( stack );
+		}
+
+		void unalign_stack ( ) {
+			auto stack = get_reg_internal<KubRegister::RSP, Register::RSP, uint64_t> ( );
+			stack = ALIGN_DOWN ( stack - 0x10, 0x10 ) + 0x8;
+			set_reg_internal<KubRegister::RSP, Register::RSP, uint64_t> ( stack );
+		}
+
 		// Handles instruction pointer switch
 		void handle_ip_switch ( uint64_t );
 
@@ -100,12 +131,19 @@ namespace kubera
 			( *kubera::instruction_dispatch_table ) [ static_cast< size_t >( instr.mnemonic ( ) ) ] ( instr, *this );
 		}
 
+		iced::Instruction& emulate ( ) {
+			reconfigure ( rip ( ) );
+			auto& instr = decoder->decode ( );
+			execute ( instr );
+			rip ( ) += decoder->ip ( );
+			return instr;
+		}
+
 		// Template function to read data of specified type from memory
 		template <typename Type>
 		Type read_type ( uint64_t address ) const {
 			static_assert( !std::is_same_v<Type, float80_t>, "Use read_type_float80_t to read a float80_t" );
-			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> )
-			{
+			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> ) {
 				Type val;
 				std::memcpy ( &val, reinterpret_cast< const void* >( address ), sizeof ( Type ) );
 				return val;
@@ -120,8 +158,7 @@ namespace kubera
 		// Template function to write data of specified type to memory
 		template <typename Type>
 		void write_type ( uint64_t address, Type val ) {
-			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> )
-			{
+			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> ) {
 				std::memcpy ( reinterpret_cast< void* >( address ), &val, sizeof ( Type ) );
 			}
 			else if constexpr ( std::is_same_v<Type, float80_t> ) {
@@ -148,7 +185,7 @@ namespace kubera
 		Type get_memory ( uint64_t address ) const {
 			// TODO: Implement proper validation
 			if ( platform_memory_read_check ) {
-				if ( !platform_memory_read_check( address, sizeof ( Type ) ) ) {
+				if ( !platform_memory_read_check ( address, sizeof ( Type ) ) ) {
 					// TODO: Implement exception handling
 					return 0ULL;
 				}

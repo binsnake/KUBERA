@@ -444,8 +444,8 @@ namespace iced
 		}
 
 		void reconfigure ( const std::uint8_t* buffer, std::size_t size, std::uint64_t baseAddress ) noexcept {
-			assert ( buffer != nullptr && "Buffer cannot be null" );
-			assert ( size > 0 && "Buffer size must be greater than 0" );
+			//assert ( buffer != nullptr && "Buffer cannot be null" );
+			//assert ( size > 0 && "Buffer size must be greater than 0" );
 
 			data_ = buffer;
 			size_ = size;

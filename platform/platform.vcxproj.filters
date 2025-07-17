@@ -21,6 +21,9 @@
     <ClInclude Include="portable_executable.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="windows.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\portable_executable.cpp">

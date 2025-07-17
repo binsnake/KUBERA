@@ -70,6 +70,8 @@ namespace kubera
 		GS,
 		SS,
 
+		GDTR,
+
 		COUNT // Total count for array sizing
 	};
 
@@ -148,6 +150,8 @@ namespace kubera
 			stack_base = reinterpret_cast< uint64_t >( stack_ptr );
 			stack = reinterpret_cast< uint64_t* >( stack_base + stack_size );
 			sse_registers = std::make_unique<std::array<uint512_t, 32>> ( );
+			sse_registers->fill ( uint512_t ( 0 ) );
+			timestamp_counter = __rdtsc ( );
 		}
 
 		void increment_tsc ( std::size_t amount = 1 ) {

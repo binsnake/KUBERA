@@ -20,6 +20,15 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="module_manager.cpp" />
+    <ClCompile Include="windows.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="module_manager.hpp" />
+    <ClInclude Include="wintypes.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs.md" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

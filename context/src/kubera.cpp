@@ -646,6 +646,8 @@ KUBERA::KUBERA ( ) {
 	map_gpr ( );
 	instruction_dispatch_table->fill ( unsupported_instruction );
 	map_handlers ( );
+
+	set_reg_internal<KubRegister::RSP, Register::RSP> ( reinterpret_cast< uint64_t >( cpu->stack ) );
 }
 
 
