@@ -10,6 +10,7 @@
 #include "iced.hpp"
 #include "configuration.hpp"
 #include "types.hpp"
+#include "memory.hpp"
 
 #ifdef min
 #undef min
@@ -30,15 +31,6 @@ namespace kubera
 	// Type alias for array of instruction handlers
 	using InstructionHandlerList = std::array<InstructionHandler, static_cast< std::size_t > ( Mnemonic::COUNT )>;
 
-	// Optional function to check memory read permissions
-	inline bool ( *platform_memory_read_check )( uint64_t, size_t ) = nullptr;
-
-	// Optional function to check memory write permissions
-	inline bool ( *platform_memory_write_check )( uint64_t, size_t ) = nullptr;
-
-	// Optional function to check memory executable permissions
-	inline bool ( *platform_memory_executable_check )( uint64_t ) = nullptr;
-
 	// Optional function to override target address
 	inline bool ( *platform_target_override )( uint64_t ) = nullptr;
 
@@ -48,11 +40,24 @@ namespace kubera
 	class KUBERA {
 	private:
 		std::unique_ptr<CPU> cpu = nullptr;
+		std::unique_ptr<VirtualMemory> memory = nullptr;
 
 	public:
 		std::unique_ptr<iced::Decoder> decoder = nullptr;
 		KUBERA ( );
 		~KUBERA ( ) = default;
+
+		uint64_t alloc_memory ( std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 ) {
+			return memory->alloc ( size, prot, alignment );
+		}
+
+		uint64_t load_memory ( const void* data, std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 ) {
+			return memory->load ( data, size, prot, alignment );
+		}
+
+		kubera::VirtualMemory* get_virtual_memory ( ) noexcept {
+			return memory.get ( );
+		}
 
 		// Returns a mutable reference to cpu->rflags
 		// Warning! This function can overwrite reserved bits!
@@ -91,9 +96,10 @@ namespace kubera
 		}
 
 		// Emulates the instruction and updates the decoder
-		bool reconfigure ( uint64_t new_rip ) {
+		void reconfigure ( uint64_t new_rip ) {
 			auto& current_rip = rip ( ) = new_rip;
-			decoder->reconfigure ( reinterpret_cast< const uint8_t* >( current_rip ), 15, current_rip );
+			auto* ptr = reinterpret_cast< const uint8_t* >( memory->translate ( current_rip, VirtualMemory::EXEC | VirtualMemory::READ ) );
+			decoder->reconfigure ( ptr, 15, current_rip );
 		}
 
 		// Allocate Type on stack
@@ -136,6 +142,7 @@ namespace kubera
 			auto& instr = decoder->decode ( );
 			execute ( instr );
 			rip ( ) += decoder->ip ( );
+			increment_tsc ( );
 			return instr;
 		}
 
@@ -143,13 +150,7 @@ namespace kubera
 		template <typename Type>
 		Type read_type ( uint64_t address ) const {
 			static_assert( !std::is_same_v<Type, float80_t>, "Use read_type_float80_t to read a float80_t" );
-			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> ) {
-				Type val;
-				std::memcpy ( &val, reinterpret_cast< const void* >( address ), sizeof ( Type ) );
-				return val;
-			}
-
-			return *( Type* ) ( address );
+			return memory->read<Type> ( address );
 		}
 
 		// Reads 80-bit floating-point data from memory
@@ -158,15 +159,7 @@ namespace kubera
 		// Template function to write data of specified type to memory
 		template <typename Type>
 		void write_type ( uint64_t address, Type val ) {
-			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> ) {
-				std::memcpy ( reinterpret_cast< void* >( address ), &val, sizeof ( Type ) );
-			}
-			else if constexpr ( std::is_same_v<Type, float80_t> ) {
-				std::memcpy ( reinterpret_cast< void* >( address ), &val, sizeof ( Type ) );
-			}
-			else {
-				*( Type* ) ( address ) = val;
-			}
+			memory->write<Type> ( address, val );
 		}
 
 		// Template function to read data from stack with bounds checking
@@ -183,14 +176,6 @@ namespace kubera
 		// Template function to read data from memory with permission checking
 		template <typename Type>
 		Type get_memory ( uint64_t address ) const {
-			// TODO: Implement proper validation
-			if ( platform_memory_read_check ) {
-				if ( !platform_memory_read_check ( address, sizeof ( Type ) ) ) {
-					// TODO: Implement exception handling
-					return 0ULL;
-				}
-			}
-
 			return read_type<Type> ( address );
 		}
 
@@ -213,14 +198,6 @@ namespace kubera
 		// Template function to write data to memory with permission checking
 		template <typename Type>
 		void set_memory ( uint64_t address, Type val ) {
-			// TODO: Implement proper validation
-			if ( platform_memory_write_check ) {
-				if ( !platform_memory_write_check ( address, sizeof ( Type ) ) ) {
-					// TODO: Implement exception handling
-					return;
-				}
-			}
-
 			return write_type<Type> ( address, val );
 		}
 
@@ -285,6 +262,7 @@ namespace kubera
 			return 0;
 		}
 
+		// An internal helper to get a register which is known at compile-time with less overhead
 		template <KubRegister reg, Register iced_reg, typename Type>
 		Type get_reg_internal ( ) {
 			if constexpr ( reg == KubRegister::RIP ) {
@@ -301,6 +279,7 @@ namespace kubera
 			return extracted_value;
 		}
 
+		// An internal helper to set a register which is known at compile-time with less overhead
 		template <KubRegister reg, Register iced_reg, typename Type>
 		void set_reg_internal ( Type value ) {
 			const auto old_full = cpu->registers [ reg ];
@@ -316,9 +295,6 @@ namespace kubera
 			}
 
 			cpu->registers [ reg ] = value;
-			if constexpr ( reg == KubRegister::RSP ) {
-				cpu->stack = reinterpret_cast< uint64_t* >( value );
-			}
 		}
 	};
 }

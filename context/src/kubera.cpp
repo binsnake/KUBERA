@@ -9,14 +9,11 @@ KubRegister map_register ( Register reg ) {
 }
 
 void kubera::KUBERA::handle_ip_switch ( uint64_t target ) {
-	if ( platform_memory_executable_check ) {
-		if ( !platform_memory_executable_check ( target ) ) {
-			// !TODO(exception)
-			return;
-		}
-	}
+        if ( !memory->check ( target, 1, VirtualMemory::EXEC ) ) {
+                return;
+        }
 
-	this->rip ( ) = target;
+        this->rip ( ) = target;
 }
 
 uint64_t KUBERA::get_access_mask ( Register reg, size_t size ) const noexcept {
@@ -121,10 +118,7 @@ void KUBERA::set_reg ( Register reg, uint64_t value_to_set, size_t size ) {
 		new_full_concrete = ( old_full_concrete & ~access_mask ) | ( shifted_value & access_mask );
 	}
 
-	cpu->registers [ full_reg ] = new_full_concrete;
-	if ( full_reg == KubRegister::RSP ) {
-		cpu->stack = reinterpret_cast< uint64_t* >( value_to_set );
-	}
+        cpu->registers [ full_reg ] = new_full_concrete;
 }
 
 bool KUBERA::is_within_stack_bounds ( uint64_t address, size_t size ) const noexcept {
@@ -326,8 +320,8 @@ float80_t from_ieee754_80_bytes ( const uint8_t bytes [ 10 ] ) {
 }
 
 float80_t KUBERA::read_type_float80_t ( uint64_t address ) const {
-	uint64_t p0 = *( uint64_t* ) ( address + 0 );
-	uint16_t p1 = *( uint16_t* ) ( address + 8 );
+        uint64_t p0 = memory->read<uint64_t> ( address + 0 );
+        uint16_t p1 = memory->read<uint16_t> ( address + 8 );
 
 	alignas( 16 ) uint8_t temp [ 10 ];
 	std::memcpy ( temp, &p0, 8 ); 
@@ -636,18 +630,17 @@ void map_handlers ( ) {
 }
 
 KUBERA::KUBERA ( ) {
-	cpu = std::make_unique<CPU> (
-		static_cast< uint64_t* > ( _aligned_malloc ( 0x200000, 4096 ) ),
-		0x200000
-	);
-	decoder = std::make_unique<iced::Decoder> ( );
+        memory = std::make_unique<VirtualMemory> ( );
+        const uint64_t stack_addr = memory->alloc ( 0x200000, VirtualMemory::READ | VirtualMemory::WRITE );
+        cpu = std::make_unique<CPU> ( stack_addr, 0x200000 );
+        decoder = std::make_unique<iced::Decoder> ( );
 	instruction_dispatch_table = std::make_unique<InstructionHandlerList> ( );
 	map_avx ( );
 	map_gpr ( );
 	instruction_dispatch_table->fill ( unsupported_instruction );
 	map_handlers ( );
 
-	set_reg_internal<KubRegister::RSP, Register::RSP> ( reinterpret_cast< uint64_t >( cpu->stack ) );
+        set_reg_internal<KubRegister::RSP, Register::RSP> ( stack_addr + cpu->stack_size );
 }
 
 

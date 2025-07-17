@@ -133,10 +133,9 @@ namespace kubera
 	};
 
 	struct alignas( 64 ) CPU {
-		std::array<std::uint64_t, KubRegister::COUNT> registers = { 0 };
-		std::uint64_t* stack = nullptr;
-		std::uint64_t stack_base = 0ULL;
-		std::size_t stack_size = 0x200000;
+               std::array<std::uint64_t, KubRegister::COUNT> registers = { 0 };
+               std::uint64_t stack_base = 0ULL;
+               std::size_t stack_size = 0x200000;
 		std::vector<std::uint64_t> shadow_stack { };
 		std::uint64_t ssp = 0ULL;
 		x86::Flags rflags = static_cast< x86::Flags >( 0x0000000000000202ULL );
@@ -146,13 +145,11 @@ namespace kubera
 		FPU fpu { };
 		std::unique_ptr<std::array<uint512_t, 32>> sse_registers = nullptr;
 
-		CPU ( std::uint64_t* stack_ptr, std::size_t _stack_size ) : stack_size ( _stack_size ) {
-			stack_base = reinterpret_cast< uint64_t >( stack_ptr );
-			stack = reinterpret_cast< uint64_t* >( stack_base + stack_size );
-			sse_registers = std::make_unique<std::array<uint512_t, 32>> ( );
-			sse_registers->fill ( uint512_t ( 0 ) );
-			timestamp_counter = __rdtsc ( );
-		}
+               CPU ( std::uint64_t stack_base_addr, std::size_t _stack_size ) : stack_base(stack_base_addr), stack_size ( _stack_size ) {
+                       sse_registers = std::make_unique<std::array<uint512_t, 32>> ( );
+                       sse_registers->fill ( uint512_t ( 0 ) );
+                       timestamp_counter = __rdtsc ( );
+               }
 
 		void increment_tsc ( std::size_t amount = 1 ) {
 			timestamp_counter += amount;

@@ -30,6 +30,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "example-windows", "example\
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "logger", "logger\logger.vcxproj", "{4DBF0CC0-C84F-4E2A-AB6A-E24F0C9B27DF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "linux-pe", "linuxpe\linuxpe.vcxitems", "{B1F1BC0E-862F-4172-A34B-99EB4FAF5229}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-app-windows", "test-app-windows\test-app-windows.vcxproj", "{A6AC46E1-A546-460F-9BFF-322427D30A5E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -86,6 +90,14 @@ Global
 		{4DBF0CC0-C84F-4E2A-AB6A-E24F0C9B27DF}.Release|x64.Build.0 = Release|x64
 		{4DBF0CC0-C84F-4E2A-AB6A-E24F0C9B27DF}.Release|x86.ActiveCfg = Release|Win32
 		{4DBF0CC0-C84F-4E2A-AB6A-E24F0C9B27DF}.Release|x86.Build.0 = Release|Win32
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Debug|x64.ActiveCfg = Debug|x64
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Debug|x64.Build.0 = Debug|x64
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Debug|x86.ActiveCfg = Debug|Win32
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Debug|x86.Build.0 = Debug|Win32
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Release|x64.ActiveCfg = Release|x64
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Release|x64.Build.0 = Release|x64
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Release|x86.ActiveCfg = Release|Win32
+		{A6AC46E1-A546-460F-9BFF-322427D30A5E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
