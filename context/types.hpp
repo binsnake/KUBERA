@@ -144,8 +144,9 @@ namespace kubera
 		FPU fpu { };
 		std::unique_ptr<std::array<uint512_t, 32>> sse_registers = nullptr;
 
-		CPU ( std::uint64_t* stack_ptr, std::size_t _stack_size ) : stack ( stack_ptr ), stack_size ( _stack_size ) {
+		CPU ( std::uint64_t* stack_ptr, std::size_t _stack_size ) : stack_size ( _stack_size ) {
 			stack_base = reinterpret_cast< uint64_t >( stack_ptr );
+			stack = reinterpret_cast< uint64_t* >( stack_base + stack_size );
 			sse_registers = std::make_unique<std::array<uint512_t, 32>> ( );
 		}
 

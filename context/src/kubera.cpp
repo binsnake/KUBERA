@@ -330,7 +330,7 @@ float80_t KUBERA::read_type_float80_t ( uint64_t address ) const {
 	uint16_t p1 = *( uint16_t* ) ( address + 8 );
 
 	alignas( 16 ) uint8_t temp [ 10 ];
-	std::memcpy ( temp, &p0, 8 );
+	std::memcpy ( temp, &p0, 8 ); 
 	std::memcpy ( temp + 8, &p1, 2 );
 
 	return from_ieee754_80_bytes ( temp );

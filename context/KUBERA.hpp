@@ -16,7 +16,7 @@
 namespace kubera
 {
 	// Type alias for instruction handler function
-	using InstructionHandler = std::function<void ( const iced::Instruction&, class KUBERA& state )>;
+	using InstructionHandler = void (*) ( const iced::Instruction&, class KUBERA& state );
 
 	// Type alias for array of instruction handlers
 	using InstructionHandlerList = std::array<InstructionHandler, static_cast< std::size_t > ( Mnemonic::COUNT )>;
@@ -104,29 +104,11 @@ namespace kubera
 		template <typename Type>
 		Type read_type ( uint64_t address ) const {
 			static_assert( !std::is_same_v<Type, float80_t>, "Use read_type_float80_t to read a float80_t" );
-			if constexpr ( std::is_same_v<Type, uint128_t> ) {
-				uint64_t p0 = *( uint64_t* ) ( address + 0 );
-				uint64_t p1 = *( uint64_t* ) ( address + 8 );
-				return ( Type ( p1 ) << 64 ) | p0;
-			}
-			else if constexpr ( std::is_same_v<Type, uint256_t> ) {
-				uint64_t p0 = *( uint64_t* ) ( address + 0 );
-				uint64_t p1 = *( uint64_t* ) ( address + 8 );
-				uint64_t p2 = *( uint64_t* ) ( address + 16 );
-				uint64_t p3 = *( uint64_t* ) ( address + 24 );
-				return ( Type ( p3 ) << 192 ) | ( Type ( p2 ) << 128 ) | ( Type ( p1 ) << 64 ) | Type ( p0 );
-			}
-			else if constexpr ( std::is_same_v<Type, uint512_t> ) {
-				uint64_t p0 = *( uint64_t* ) ( address + 0 );
-				uint64_t p1 = *( uint64_t* ) ( address + 8 );
-				uint64_t p2 = *( uint64_t* ) ( address + 16 );
-				uint64_t p3 = *( uint64_t* ) ( address + 24 );
-				uint64_t p4 = *( uint64_t* ) ( address + 32 );
-				uint64_t p5 = *( uint64_t* ) ( address + 40 );
-				uint64_t p6 = *( uint64_t* ) ( address + 48 );
-				uint64_t p7 = *( uint64_t* ) ( address + 56 );
-				return ( Type ( p7 ) << 448 ) | ( Type ( p6 ) << 384 ) | ( Type ( p5 ) << 320 ) | ( Type ( p4 ) << 256 ) |
-					( Type ( p3 ) << 192 ) | ( Type ( p2 ) << 128 ) | ( Type ( p1 ) << 64 ) | Type ( p0 );
+			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> )
+			{
+				Type val;
+				std::memcpy ( &val, reinterpret_cast< const void* >( address ), sizeof ( Type ) );
+				return val;
 			}
 
 			return *( Type* ) ( address );
@@ -138,45 +120,12 @@ namespace kubera
 		// Template function to write data of specified type to memory
 		template <typename Type>
 		void write_type ( uint64_t address, Type val ) {
-			if constexpr ( std::is_same_v<Type, uint128_t> ) {
-				uint64_t p0 = static_cast< uint64_t >( val );
-				uint64_t p1 = static_cast< uint64_t >( val >> 64 );
-				*( uint64_t* ) ( address + 0 ) = p0;
-				*( uint64_t* ) ( address + 8 ) = p1;
-			}
-			else if constexpr ( std::is_same_v<Type, uint256_t> ) {
-				uint64_t p0 = static_cast< uint64_t >( val );
-				uint64_t p1 = static_cast< uint64_t >( val >> 64 );
-				uint64_t p2 = static_cast< uint64_t >( val >> 128 );
-				uint64_t p3 = static_cast< uint64_t >( val >> 192 );
-				*( uint64_t* ) ( address + 0 ) = p0;
-				*( uint64_t* ) ( address + 8 ) = p1;
-				*( uint64_t* ) ( address + 16 ) = p2;
-				*( uint64_t* ) ( address + 24 ) = p3;
-			}
-			else if constexpr ( std::is_same_v<Type, uint512_t> ) {
-				uint64_t p0 = static_cast< uint64_t >( val );
-				uint64_t p1 = static_cast< uint64_t >( val >> 64 );
-				uint64_t p2 = static_cast< uint64_t >( val >> 128 );
-				uint64_t p3 = static_cast< uint64_t >( val >> 192 );
-				uint64_t p4 = static_cast< uint64_t >( val >> 256 );
-				uint64_t p5 = static_cast< uint64_t >( val >> 320 );
-				uint64_t p6 = static_cast< uint64_t >( val >> 384 );
-				uint64_t p7 = static_cast< uint64_t >( val >> 448 );
-				*( uint64_t* ) ( address + 0 ) = p0;
-				*( uint64_t* ) ( address + 8 ) = p1;
-				*( uint64_t* ) ( address + 16 ) = p2;
-				*( uint64_t* ) ( address + 24 ) = p3;
-				*( uint64_t* ) ( address + 32 ) = p4;
-				*( uint64_t* ) ( address + 40 ) = p5;
-				*( uint64_t* ) ( address + 48 ) = p6;
-				*( uint64_t* ) ( address + 56 ) = p7;
+			if constexpr ( std::is_same_v<Type, uint128_t> || std::is_same_v<Type, uint256_t> || std::is_same_v<Type, uint512_t> )
+			{
+				std::memcpy ( reinterpret_cast< void* >( address ), &val, sizeof ( Type ) );
 			}
 			else if constexpr ( std::is_same_v<Type, float80_t> ) {
-				uint64_t* dest = ( uint64_t* ) address;
-				const uint8_t* src = reinterpret_cast< const uint8_t* >( &val );
-				*dest = *reinterpret_cast< const uint64_t* >( src );
-				*( uint16_t* ) ( address + 8 ) = *reinterpret_cast< const uint16_t* >( src + 8 );
+				std::memcpy ( reinterpret_cast< void* >( address ), &val, sizeof ( Type ) );
 			}
 			else {
 				*( Type* ) ( address ) = val;

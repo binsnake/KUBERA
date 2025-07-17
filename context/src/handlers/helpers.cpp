@@ -1,20 +1,6 @@
 #include "helpers.hpp"
 
-uint64_t helpers::calculate_mem_addr ( const iced::Instruction& instr, KUBERA& state ) {
-	uint64_t address = 0;
-	if ( instr.mem_base ( ) != Register::None ) {
-		address += state.get_reg ( instr.mem_base ( ), 8 );
-	}
-	if ( instr.mem_index ( ) != Register::None ) {
-		address += state.get_reg ( instr.mem_index ( ), 8 ) * instr.mem_scale ( );
-	}
-	if ( instr.segment_prefix ( ) != Register::None ) {
-		address += state.get_reg ( instr.segment_prefix ( ), 8 );
-	}
 
-	address += instr.displacement ( );
-	return address;
-}
 
 bool helpers::divide_unsigned_boost ( uint128_t dividend, uint64_t divisor, size_t op_size, uint64_t& quotient, uint64_t& remainder ) {
 	if ( divisor == 0 ) {
