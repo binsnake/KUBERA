@@ -26,7 +26,6 @@
     <ClInclude Include="KUBERA.hpp" />
     <ClInclude Include="sign_extend.hpp" />
     <ClInclude Include="memory.hpp" />
-    <ClInclude Include="module_manager.hpp" />
     <ClInclude Include="src\handlers\helpers.hpp" />
     <ClInclude Include="types.hpp" />
     <ClInclude Include="x86.hpp" />

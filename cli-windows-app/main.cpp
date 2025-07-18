@@ -2,16 +2,25 @@
 #include <print>
 #include <sstream>
 #include <chrono>
-#define NOMINMAX
-#include <Windows.h>
 #pragma comment(lib, "KUBERA.lib")
 #pragma comment(lib, "platform.lib")
 #include "wintypes.hpp"
 #include "syscalls.hpp"
 #include "module_manager.hpp"
-#include "peb.hpp"
 
+#define NOMINMAX
+#include <Windows.h>
 using namespace kubera;
+
+typedef struct _API_SET_NAMESPACE {
+	ULONG Version;
+	ULONG Size;
+	ULONG Flags;
+	ULONG Count;
+	ULONG EntryOffset;
+	ULONG HashOffset;
+	ULONG HashFactor;
+} API_SET_NAMESPACE, * PAPI_SET_NAMESPACE;
 
 void save_cpu_state ( KUBERA& ctx, CONTEXT& context ) {
 	if ( ( context.ContextFlags & CONTEXT_DEBUG_REGISTERS ) == CONTEXT_DEBUG_REGISTERS ) {
@@ -99,7 +108,7 @@ void setup_context ( KUBERA& ctx, uint64_t start_address ) {
 	winctx.Rdx = 0;
 
 	CONTEXT* winctx_stack = ctx.allocate_on_stack<CONTEXT> ( );
-	memcpy ( winctx_stack, &winctx, sizeof ( CONTEXT ) );
+	memcpy ( ctx.get_virtual_memory ( )->translate ( reinterpret_cast< uint64_t >( winctx_stack ), VirtualMemory::READ ), &winctx, sizeof ( CONTEXT ) );
 	ctx.unalign_stack ( );
 
 	ctx.rip ( ) = windows::ldr_initialize_thunk;
@@ -111,9 +120,9 @@ int main ( ) {
 	KUBERA ctx { };
 	ModuleManager mm { ctx.get_virtual_memory ( ) };
 
-	windows::ntdll = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\ntdll.dll" ) );
-	windows::win32u = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\win32u.dll" ) );
-	windows::emu_module = reinterpret_cast< void* >( mm.load_module ( "emu.exe" ) );
+	windows::emu_module = reinterpret_cast< void* >( mm.load_module ( "D:\\binsnake\\kubera\\emu.exe", false ) );
+	windows::ntdll = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\ntdll.dll", false ) );
+	windows::win32u = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\win32u.dll", false ) );
 
 	windows::ldr_initialize_thunk =
 		mm.get_export_address_public ( "C:\\Windows\\System32\\ntdll.dll", "LdrInitializeThunk" );
@@ -130,10 +139,18 @@ int main ( ) {
 	syscall_handlers::build_syscall_map ( ctx, mm );
 	windows::setup_fake_peb ( ctx, reinterpret_cast< uint64_t >( windows::ntdll ) );
 
-	setup_context ( ctx, mm.get_entry_point ( "emu.exe" ) );
+	char buf [ 128 ] { 0 };
 
+	GetCurrentDirectoryA ( sizeof ( buf ), buf );
+	std::println ( "{}", buf );
+	setup_context ( ctx, mm.get_entry_point ( "D:\\binsnake\\kubera\\emu.exe" ) );
+
+	std::println ( "ntdll base: {:#x}", ( uint64_t ) windows::emu_module );
+	auto vm = ctx.get_virtual_memory ( );
+	std::println ( "ntdll base real: {:#x}", ( uint64_t ) vm->translate ( ( uint64_t ) windows::emu_module, VirtualMemory::READ ) );
 	while ( true ) {
 		auto& instr = ctx.emulate ( );
+		std::println ( "[{:#x} - {:#x}] {}", instr.ip, (uint64_t)vm->translate ( ctx.rip ( ), VirtualMemory::READ ), instr.to_string ( ) );
 		if ( !instr.valid ( ) ) {
 			break;
 		}

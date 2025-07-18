@@ -35,7 +35,7 @@
     <ClInclude Include="module_manager.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="peb.hpp">
+    <ClInclude Include="teb.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

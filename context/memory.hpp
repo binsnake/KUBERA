@@ -72,7 +72,21 @@ namespace kubera
 
 	inline uint64_t VirtualMemory::load ( const void* data, std::size_t size, uint8_t prot, std::size_t alignment ) {
 		uint64_t addr = alloc ( size, prot, alignment );
-		std::memcpy ( translate ( addr, Protection::WRITE | Protection::READ ), data, size );
+		const uint8_t* src = static_cast< const uint8_t* > ( data );
+		std::size_t remaining = size;
+		uint64_t current = addr;
+		while ( remaining > 0 ) {
+			void* dst = translate ( current, Protection::WRITE );
+			if ( !dst ) {
+				return 0;
+			}
+			std::size_t offset = current % page_size;
+			std::size_t to_copy = std::min ( remaining, page_size - offset );
+			std::memcpy ( dst, src, to_copy );
+			src += to_copy;
+			current += to_copy;
+			remaining -= to_copy;
+		}
 		return addr;
 	}
 
@@ -82,7 +96,7 @@ namespace kubera
 			uint64_t virt = ( addr & ~( page_size - 1 ) ) + i * page_size;
 			auto it = pages.find ( virt );
 			if ( it != pages.end ( ) ) {
-				if ( it->second.data ) std::free ( it->second.data );
+				if ( it->second.data ) _aligned_free ( it->second.data );
 				pages.erase ( it );
 			}
 		}
@@ -103,7 +117,7 @@ namespace kubera
 		uint64_t virt_page = addr & ~( page_size - 1 );
 		for ( auto& e : cache ) {
 			if ( e.virt == virt_page ) {
-				if ( !( e.page->prot & access ) ) return nullptr;
+				if ( ( e.page->prot & access ) != access ) return nullptr;
 				if ( !e.page->present ) {
 					e.page->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) ); __assume( e.page->data != nullptr );
 					std::memset ( e.page->data, 0, page_size );
@@ -117,7 +131,9 @@ namespace kubera
 		Page* pg = &it->second;
 		cache [ cache_pos ] = { virt_page, pg };
 		cache_pos = ( cache_pos + 1 ) % cache.size ( );
-		if ( !( pg->prot & access ) ) return nullptr;
+		if ( ( pg->prot & access ) != access ) {
+			return nullptr;
+		}
 		if ( !pg->present ) {
 			pg->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) ); __assume( pg->data != nullptr );
 			std::memset ( pg->data, 0, page_size );
@@ -136,10 +152,22 @@ namespace kubera
 
 	template<typename T>
 	inline T VirtualMemory::read ( uint64_t addr ) {
-		void* p = translate ( addr, Protection::READ );
-		if ( !p ) return T {};
-		T val;
-		std::memcpy ( &val, p, sizeof ( T ) );
+		T val {};
+		uint8_t* dest = reinterpret_cast< uint8_t* > ( &val );
+		std::size_t remaining = sizeof ( T );
+		uint64_t current = addr;
+		while ( remaining > 0 ) {
+			void* src = translate ( current, Protection::READ );
+			if ( !src ) {
+				return T {};
+			}
+			std::size_t offset = current % page_size;
+			std::size_t to_copy = std::min ( remaining, page_size - offset );
+			std::memcpy ( dest, src, to_copy );
+			dest += to_copy;
+			current += to_copy;
+			remaining -= to_copy;
+		}
 		return val;
 	}
 
@@ -175,9 +203,21 @@ namespace kubera
 
 	template<typename T>
 	inline void VirtualMemory::write ( uint64_t addr, T val ) {
-		void* p = translate ( addr, Protection::WRITE );
-		if ( !p ) return;
-		std::memcpy ( p, &val, sizeof ( T ) );
+		const uint8_t* src = reinterpret_cast< const uint8_t* > ( &val );
+		std::size_t remaining = sizeof ( T );
+		uint64_t current = addr;
+		while ( remaining > 0 ) {
+			void* dest = translate ( current, Protection::WRITE );
+			if ( !dest ) {
+				return;
+			}
+			std::size_t offset = current % page_size;
+			std::size_t to_copy = std::min ( remaining, page_size - offset );
+			std::memcpy ( dest, src, to_copy );
+			src += to_copy;
+			current += to_copy;
+			remaining -= to_copy;
+		}
 	}
 
 	template<>

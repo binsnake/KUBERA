@@ -91,7 +91,7 @@ class ModuleManager {
 		std::size_t resolved = 0u;
 		std::println ( "Resolving imports..." );
 		auto* dir = img->get_directory ( win::directory_entry_import );
-		if ( !dir->present ( ) ) {
+		if ( !dir || !dir->present ( ) ) {
 			std::println ( "\tImage has no imports!" );
 			return true;
 		}
@@ -158,8 +158,9 @@ public:
 	}
 
 	uint64_t get_entry_point ( const std::string& mod ) {
-		auto mod_base = reinterpret_cast< win::image_x64_t* >( get_module_base ( mod ) );
-		return reinterpret_cast< uint64_t >( mod_base ) + mod_base->get_nt_headers ( )->optional_header.entry_point;
+		auto vm_base = get_module_base ( mod );
+		auto mod_base = reinterpret_cast< win::image_x64_t* >( vm->translate ( vm_base, kubera::VirtualMemory::READ ) );
+		return vm_base + mod_base->get_nt_headers ( )->optional_header.entry_point;
 	}
 
 	const std::unordered_map<std::string, uint64_t>* get_exports_public ( const std::string& mod ) const {
@@ -173,7 +174,7 @@ public:
 		return nullptr;
 	}
 
-	uint64_t load_module ( const std::string& path ) {
+	uint64_t load_module ( const std::string& path, bool with_imports = true ) {
 		std::println ( "[mm] Mapping {}", path );
 		using namespace kubera;
 		uint64_t existing = get_module_base ( path );
@@ -193,14 +194,14 @@ public:
 		auto* image = reinterpret_cast< win::image_x64_t* >( buf.data ( ) );
 		if ( image->dos_header.e_magic != 'ZM' ) return 0;
 		auto* nt = image->get_nt_headers ( );
-		if ( nt->signature != 0x50450000 ) return 0;
+
 		if ( nt->file_header.machine != win::machine_id::amd64 ) return 0;
 
 		std::size_t image_size = nt->optional_header.size_image;
 		uint64_t base = vm->alloc ( image_size, VirtualMemory::READ | VirtualMemory::WRITE );
 		int64_t delta = static_cast< int64_t >( base - nt->optional_header.image_base );
 
-		if ( !resolve_imports ( image, nt ) ) {
+		if ( with_imports && !resolve_imports ( image, nt ) ) {
 			return 0;
 		}
 		resolve_relocations ( image, nt, delta );
@@ -218,7 +219,6 @@ public:
 			else {
 				prot = VirtualMemory::READ;
 			}
-			vm->protect ( sec_va, sec_size, prot );
 			const uint8_t* src = buf.data ( ) + sec.ptr_raw_data;
 			std::size_t raw_size = sec.size_raw_data;
 			for ( std::size_t off = 0; off < sec_size; off += vm->page_size ) {
@@ -228,11 +228,12 @@ public:
 				if ( copy ) std::memcpy ( dest, src + off, copy );
 				if ( copy < vm->page_size ) std::memset ( dest + copy, 0, vm->page_size - copy );
 			}
+			vm->protect ( sec_va, sec_size, prot );
 		}
 
 		Module mod { path, base, image_size };
 		auto* exp_dir = image->get_directory ( win::directory_entry_export );
-		if ( exp_dir->present ( ) ) {
+		if ( exp_dir && exp_dir->present ( ) ) {
 			auto* exp = image->rva_to_ptr<win::export_directory_t> ( exp_dir->rva );
 			auto* funcs = image->rva_to_ptr<uint32_t> ( exp->rva_functions );
 			auto* names = image->rva_to_ptr<uint32_t> ( exp->rva_names );

@@ -48,6 +48,7 @@ void syscall_handlers::build_syscall_map ( kubera::KUBERA& ctx, ModuleManager& m
 			}
 			if ( found ) {
 				syscall_map [ name ] = idx;
+				handler_name_map [ idx ] = name;
 			}
 		}
 	}
@@ -64,6 +65,7 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 	std::string fmt;
 	const auto syscall_id = ctx.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( );
 	const auto handler_available = handler_map.contains ( syscall_id );
+	const auto has_name = handler_name_map.contains ( syscall_id );
 	if ( handler_available && handler_name_map.contains ( syscall_id ) ) {
 		std::println ( "[syscall - {:#x}] {:#X} {:#X} {:#X} {:#X}", syscall_id, SYSCALL_REG_DUMP ( ctx ) );
 	}
@@ -77,7 +79,13 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 		std::println ( "\t\t-> {:#X}", ctx.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( ) );
 	}
 	else {
-		std::println ( "[syscall - {:#x}] No handler!", syscall_id );
+		if ( has_name ) {
+			std::println ( "[syscall - {}] No handler!", handler_name_map[ syscall_id ] );
+		}
+		else {
+			std::println ( "[syscall - {:#x}] No handler!", syscall_id );
+		}
+		__debugbreak ( );
 	}
 }
 

@@ -95,11 +95,32 @@ namespace kubera
 			return cpu->registers [ KubRegister::RIP ];
 		}
 
+		std::size_t fetch_instruction_bytes ( uint64_t addr, uint8_t* buffer, std::size_t max_bytes ) {
+			std::size_t fetched = 0;
+			uint64_t current = addr;
+			while ( fetched < max_bytes ) {
+				void* src = memory->translate ( current, VirtualMemory::EXEC | VirtualMemory::READ );
+				if ( !src ) {
+					return 0;
+				}
+				std::size_t offset = current % memory->page_size;
+				std::size_t to_copy = std::min ( max_bytes - fetched, memory->page_size - offset );
+				std::memcpy ( buffer + fetched, src, to_copy );
+				fetched += to_copy;
+				current += to_copy;
+			}
+			return fetched;
+		}
+
 		// Emulates the instruction and updates the decoder
 		void reconfigure ( uint64_t new_rip ) {
-			auto& current_rip = rip ( ) = new_rip;
-			auto* ptr = reinterpret_cast< const uint8_t* >( memory->translate ( current_rip, VirtualMemory::EXEC | VirtualMemory::READ ) );
-			decoder->reconfigure ( ptr, 15, current_rip );
+			rip ( ) = new_rip;
+			uint8_t instr_buffer [ 15 ] = { 0 };
+			std::size_t bytes_fetched = fetch_instruction_bytes ( new_rip, instr_buffer, 15 );
+			if ( bytes_fetched == 0 ) {
+				__debugbreak ( );
+			}
+			decoder->reconfigure ( instr_buffer, bytes_fetched, new_rip );
 		}
 
 		// Allocate Type on stack
@@ -138,10 +159,13 @@ namespace kubera
 		}
 
 		iced::Instruction& emulate ( ) {
+			auto old_rip = rip ( );
 			reconfigure ( rip ( ) );
 			auto& instr = decoder->decode ( );
 			execute ( instr );
-			rip ( ) += decoder->ip ( );
+			if ( rip ( ) == old_rip ) {
+				rip ( ) += instr.length ( );
+			}
 			increment_tsc ( );
 			return instr;
 		}
