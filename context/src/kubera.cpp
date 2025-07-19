@@ -507,6 +507,9 @@ void map_handlers ( ) {
 	SET_HANDLER ( Mnemonic::Jrcxz, handlers::jrcxz );
 	SET_HANDLER ( Mnemonic::Call, handlers::call );
 	SET_HANDLER ( Mnemonic::Ret, handlers::ret );
+	SET_HANDLER ( Mnemonic::Iret, handlers::iret );
+	SET_HANDLER ( Mnemonic::Iretd, handlers::iretd );
+	SET_HANDLER ( Mnemonic::Iretq, handlers::iretq );
 
 	// Stack and Frame Instructions
 	SET_HANDLER ( Mnemonic::Enter, handlers::enter );

@@ -223,3 +223,49 @@ void handlers::call ( const iced::Instruction& instr, KUBERA& context ) {
 	context.set_reg ( Register::RSP, new_rsp, op_size );
 	handlers::jmp ( instr, context );
 }
+
+void iret ( size_t op_size, const iced::Instruction& instr, KUBERA& context ) {
+	uint64_t rsp = context.get_reg ( Register::RSP, 8 );
+
+	uint64_t ip = context.get_stack<uint64_t> ( rsp );
+	rsp += op_size;
+	uint64_t cs = context.get_stack<uint64_t> ( rsp );
+	rsp += op_size;
+	uint64_t flags_val = context.get_stack<uint64_t> ( rsp );
+	rsp += op_size;
+
+	uint8_t new_cpl = cs & 0x3;
+	uint8_t current_cpl = context.get_cpl ( );
+	if ( new_cpl > current_cpl ) {
+		uint64_t new_rsp = context.get_stack<uint64_t> ( rsp );
+		rsp += op_size;
+		uint64_t new_ss = context.get_stack<uint64_t> ( rsp );
+		rsp += op_size;
+		context.set_reg ( Register::RSP, new_rsp, op_size );
+		context.set_reg ( Register::SS, new_ss, op_size );
+	}
+
+	context.set_reg ( Register::RIP, ip, op_size );
+	context.set_reg ( Register::CS, cs, op_size );
+	context.set_rflags ( flags_val );
+	context.set_reg ( Register::RSP, rsp, op_size );
+	context.get_cpl ( ) = new_cpl;
+}
+
+/// IRET - Interrupt Return 16-bit
+/// Returns from an interrupt or exception handler by popping the instruction pointer, code segment, and flags from the stack, optionally popping the stack pointer and stack segment if changing privilege levels, updating CPL, without affecting other flags.
+void handlers::iret ( const iced::Instruction& instr, KUBERA& context ) {
+	::iret ( 2, instr, context );
+}
+
+/// IRETD - Interrupt Return 32-bit
+/// Returns from an interrupt or exception handler by popping the instruction pointer, code segment, and flags from the stack, optionally popping the stack pointer and stack segment if changing privilege levels, updating CPL, without affecting other flags.
+void handlers::iretd ( const iced::Instruction& instr, KUBERA& context ) {
+	::iret ( 4, instr, context );
+}
+
+/// IRETQ - Interrupt Return 64-bit
+/// Returns from an interrupt or exception handler by popping the instruction pointer, code segment, and flags from the stack, optionally popping the stack pointer and stack segment if changing privilege levels, updating CPL, without affecting other flags.
+void handlers::iretq ( const iced::Instruction& instr, KUBERA& context ) {
+	::iret ( 8, instr, context );
+}

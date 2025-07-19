@@ -3,6 +3,7 @@
 #include <print>
 #include <algorithm>
 #include <cctype>
+#include "syscall_host.hpp"
 using namespace kubera;
 
 #define SYSCALL_REG_DUMP(ctx) \
@@ -57,7 +58,7 @@ void syscall_handlers::build_syscall_map ( kubera::KUBERA& ctx, ModuleManager& m
 void syscall_handlers::dispatcher ( const iced::Instruction& instr, KUBERA& ctx ) {
 	const auto syscall_id = ctx.get_reg_internal<KubRegister::RAX, Register::EAX, uint32_t> ( );
 	if ( handler_map.contains ( syscall_id ) ) {
-		handler_map [ syscall_id ] ( instr, ctx );
+		handler_map [ syscall_id ] ( syscall_id, ctx );
 	}
 }
 
@@ -75,7 +76,7 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 			std::println ( "[syscall - {:#x}] {:#X} {:#X} {:#X} {:#X}", syscall_id, SYSCALL_REG_DUMP ( ctx ) );
 		}
 
-		handler_map [ syscall_id ] ( instr, ctx );
+		handler_map [ syscall_id ] ( syscall_id, ctx );
 		std::println ( "\t\t-> {:#X}", ctx.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( ) );
 	}
 	else {
@@ -89,9 +90,14 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 	}
 }
 
+void NtCreateEvent ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
+	dispatch_syscall<5> ( syscall_id, ctx );
+}
+
 template<>
 void syscall_handlers::init<true> ( ) {
 	( *kubera::instruction_dispatch_table ) [ static_cast< size_t >( Mnemonic::Syscall ) ] = syscall_handlers::dispatcher_verbose;
+	handler_map [ syscall_map [ "NtCreateEvent" ] ] = NtCreateEvent;
 }
 
 template<>

@@ -120,9 +120,9 @@ int main ( ) {
 	KUBERA ctx { };
 	ModuleManager mm { ctx.get_virtual_memory ( ) };
 
-	windows::emu_module = reinterpret_cast< void* >( mm.load_module ( "D:\\binsnake\\kubera\\emu.exe", false ) );
-	windows::ntdll = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\ntdll.dll", false ) );
-	windows::win32u = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\win32u.dll", false ) );
+	windows::emu_module = reinterpret_cast< void* >( mm.load_module ( "D:\\binsnake\\kubera\\emu.exe" ) );
+	windows::ntdll = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\ntdll.dll" ) );
+	windows::win32u = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\win32u.dll" ) );
 
 	windows::ldr_initialize_thunk =
 		mm.get_export_address_public ( "C:\\Windows\\System32\\ntdll.dll", "LdrInitializeThunk" );
@@ -149,8 +149,9 @@ int main ( ) {
 	auto vm = ctx.get_virtual_memory ( );
 	std::println ( "ntdll base real: {:#x}", ( uint64_t ) vm->translate ( ( uint64_t ) windows::emu_module, VirtualMemory::READ ) );
 	while ( true ) {
+		auto real_instruction_rip = ( uint64_t ) vm->translate ( ctx.rip ( ), VirtualMemory::READ );
 		auto& instr = ctx.emulate ( );
-		std::println ( "[{:#x} - {:#x}] {}", instr.ip, (uint64_t)vm->translate ( ctx.rip ( ), VirtualMemory::READ ), instr.to_string ( ) );
+		std::println ( "[{:#x} - {:#x}] {}", instr.ip, real_instruction_rip, instr.to_string ( ) );
 		if ( !instr.valid ( ) ) {
 			break;
 		}

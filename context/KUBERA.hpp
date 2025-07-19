@@ -41,6 +41,7 @@ namespace kubera
 	private:
 		std::unique_ptr<CPU> cpu = nullptr;
 		std::unique_ptr<VirtualMemory> memory = nullptr;
+		uint8_t instr_buffer [ 15 ] = { 0 };
 
 	public:
 		std::unique_ptr<iced::Decoder> decoder = nullptr;
@@ -71,7 +72,7 @@ namespace kubera
 		}
 
 		// Returns the current privilege level
-		uint8_t get_cpl ( ) const noexcept {
+		uint8_t& get_cpl ( ) const noexcept {
 			return cpu->current_privilege_level;
 		}
 
@@ -115,7 +116,6 @@ namespace kubera
 		// Emulates the instruction and updates the decoder
 		void reconfigure ( uint64_t new_rip ) {
 			rip ( ) = new_rip;
-			uint8_t instr_buffer [ 15 ] = { 0 };
 			std::size_t bytes_fetched = fetch_instruction_bytes ( new_rip, instr_buffer, 15 );
 			if ( bytes_fetched == 0 ) {
 				__debugbreak ( );

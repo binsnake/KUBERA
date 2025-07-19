@@ -38,8 +38,22 @@
     <ClInclude Include="teb.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="process.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="process_objects.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="syscall_host.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="docs.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="_syscall_host.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

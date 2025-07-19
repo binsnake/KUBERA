@@ -25,12 +25,18 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="module_manager.hpp" />
+    <ClInclude Include="process.hpp" />
+    <ClInclude Include="process_objects.hpp" />
     <ClInclude Include="syscalls.hpp" />
+    <ClInclude Include="syscall_host.hpp" />
     <ClInclude Include="teb.hpp" />
     <ClInclude Include="wintypes.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="docs.md" />
+    <MASM Include="_syscall_host.asm">
+      <FileType>Document</FileType>
+    </MASM>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -68,6 +74,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -165,5 +172,6 @@
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\masm.targets" />
   </ImportGroup>
 </Project>

@@ -7,7 +7,7 @@
 
 namespace syscall_handlers
 {
-	inline std::map <uint32_t, void* ( * )( const iced::Instruction&, kubera::KUBERA& ctx )> handler_map;
+	inline std::map <uint32_t, void ( * )( uint32_t, kubera::KUBERA& ctx )> handler_map;
 	inline std::map <uint32_t, std::string> handler_name_map;
 	inline std::map<std::string, uint32_t> syscall_map;
 	void dispatcher ( const iced::Instruction& instr, kubera::KUBERA& ctx );

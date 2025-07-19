@@ -123,6 +123,9 @@ namespace kubera
     void jrcxz ( const iced::Instruction& instr, KUBERA& context );
     void call ( const iced::Instruction& instr, KUBERA& context );
     void ret ( const iced::Instruction& instr, KUBERA& context );
+    void iret ( const iced::Instruction& instr, KUBERA& context );
+    void iretd ( const iced::Instruction& instr, KUBERA& context );
+    void iretq ( const iced::Instruction& instr, KUBERA& context );
 
     // Stack and Frame Instructions
     void enter ( const iced::Instruction& instr, KUBERA& context );

@@ -87,65 +87,6 @@ class ModuleManager {
 		std::println ( "\tResolved {} relocations!", processed / sizeof ( win::reloc_entry_t ) );
 	}
 
-	bool resolve_imports ( win::image_x64_t* img, win::nt_headers_x64_t* nt ) {
-		std::size_t resolved = 0u;
-		std::println ( "Resolving imports..." );
-		auto* dir = img->get_directory ( win::directory_entry_import );
-		if ( !dir || !dir->present ( ) ) {
-			std::println ( "\tImage has no imports!" );
-			return true;
-		}
-		auto* iat = img->rva_to_ptr<win::import_directory_t> ( dir->rva );
-		for ( ; iat->rva_first_thunk; ++iat ) {
-			auto* name = img->rva_to_ptr<char> ( iat->rva_name );
-			if ( !name ) continue;
-			std::string dll ( name );
-			uint64_t mod_base = get_module_base ( dll );
-			if ( !mod_base ) {
-				std::string full;
-				for ( const auto& p : search_paths ) {
-					std::filesystem::path fp = p + dll;
-					if ( std::filesystem::exists ( fp ) ) {
-						full = fp.string ( );
-						break;
-					}
-				}
-				if ( full.empty ( ) ) {
-					std::println ( "\tFailed to find path for {}", dll );
-					return false;
-				}
-				mod_base = load_module ( full );
-				if ( !mod_base ) {
-					std::println ( "\tFailed to load dependency {}", dll );
-					return false;
-				}
-			}
-			std::println ( "\t{} - {:#x}", dll, mod_base );
-
-			auto* first = img->rva_to_ptr<win::image_thunk_data_t<>> ( iat->rva_first_thunk );
-			auto* thunk = img->rva_to_ptr<win::image_thunk_data_t<>> ( iat->rva_original_first_thunk ? iat->rva_original_first_thunk : iat->rva_first_thunk );
-			for ( ; thunk->address; ++thunk, ++first ) {
-				if ( thunk->is_ordinal ) {
-					uint16_t ordinal = thunk->ordinal;
-					auto addr = get_export_address ( dll, "", ordinal, true );
-					first->function = addr;
-					std::println ( "\t\t{:#x} -> {:#x}", ordinal, addr );
-					++resolved;
-					continue;
-				}
-				auto* named = img->rva_to_ptr<win::image_named_import_t> ( thunk->address );
-				if ( !named ) continue;
-				std::string func ( named->name );
-				auto addr = get_export_address ( dll, func );
-				first->function = addr;
-				std::println ( "\t\t{} -> {:#x}", func, addr );
-				++resolved;
-			}
-		}
-		std::println ( "\tResolved {} imports!", resolved );
-		return true;
-	}
-
 public:
 	explicit ModuleManager ( kubera::VirtualMemory* mem ) : vm ( mem ) { }
 
@@ -174,7 +115,7 @@ public:
 		return nullptr;
 	}
 
-	uint64_t load_module ( const std::string& path, bool with_imports = true ) {
+	uint64_t load_module ( const std::string& path ) {
 		std::println ( "[mm] Mapping {}", path );
 		using namespace kubera;
 		uint64_t existing = get_module_base ( path );
@@ -201,9 +142,6 @@ public:
 		uint64_t base = vm->alloc ( image_size, VirtualMemory::READ | VirtualMemory::WRITE );
 		int64_t delta = static_cast< int64_t >( base - nt->optional_header.image_base );
 
-		if ( with_imports && !resolve_imports ( image, nt ) ) {
-			return 0;
-		}
 		resolve_relocations ( image, nt, delta );
 
 		for ( const auto& sec : nt->sections ( ) ) {
