@@ -16,20 +16,25 @@ namespace kubera
 		explicit VirtualMemory ( std::size_t page_sz = 0x1000 );
 		~VirtualMemory ( );
 
-		uint64_t alloc ( std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 );
-		uint64_t load ( const void* data, std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 );
+		[[nodiscard]] uint64_t alloc ( std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 );
+		[[nodiscard]] uint64_t alloc_at ( uint64_t base_addr, std::size_t size, uint8_t prot );
+		[[nodiscard]] uint8_t* commit ( std::size_t size );
+		void uncommit ( uint8_t* data );
+		[[nodiscard]] uint64_t load ( const void* data, std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 );
 		void free ( uint64_t addr, std::size_t size );
 		bool protect ( uint64_t addr, std::size_t size, uint8_t prot );
-		uint32_t map_to_win_protect ( uint64_t addr );
-		WinMemoryBasicInformation get_memory_basic_information ( uint64_t addr );
-		Page* get_page ( uint64_t addr );
+		[[nodiscard]] uint32_t map_to_win_protect ( uint64_t addr );
+		[[nodiscard]] WinMemoryBasicInformation get_memory_basic_information ( uint64_t addr );
+		[[nodiscard]] Page* get_page ( uint64_t addr );
+		void set_read_hook ( uint64_t addr, std::function<void ( VirtualMemory*, uint64_t addr, std::size_t size )> hook );
 
-		template<typename T> T read ( uint64_t addr );
+		template<typename T> [[nodiscard]] T read ( uint64_t addr );
 		template<typename T> void write ( uint64_t addr, T val );
 		void read_bytes ( uint64_t addr, void* dest, std::size_t size, uint8_t access = PageProtection::READ );
 		void write_bytes ( uint64_t addr, const void* src, std::size_t size, uint8_t access = PageProtection::WRITE );
-		void* translate ( uint64_t addr, uint8_t access );
-		bool check ( uint64_t addr, std::size_t size, uint8_t access );
+		[[nodiscard]] void* translate ( uint64_t addr, uint8_t access );
+		[[nodiscard]] void* translate_bypass ( uint64_t addr );
+		[[nodiscard]] bool check ( uint64_t addr, std::size_t size, uint8_t access );
 
 		std::size_t page_size;
 
@@ -46,6 +51,8 @@ namespace kubera
 		void split_region ( uint64_t base, uint64_t split_start, uint64_t split_end, uint8_t new_protect );
 	};
 
+	constexpr auto PAGE_ALIGN = 4096;
+
 	inline VirtualMemory::VirtualMemory ( std::size_t ps ) : page_size ( ps ) {
 		for ( auto& c : cache ) {
 			c.virt = UINT64_MAX;
@@ -57,6 +64,23 @@ namespace kubera
 			if ( p->data ) {
 				_aligned_free ( p->data );
 			}
+		}
+	}
+
+	inline void VirtualMemory::set_read_hook ( uint64_t addr, std::function<void ( VirtualMemory* vm, uint64_t addr, std::size_t size )> hook ) {
+		auto* region = const_cast< Region* >( find_region ( addr ) );
+		if ( region ) {
+			region->read_hook = std::move ( hook );
+		}
+	}
+
+	inline uint8_t* VirtualMemory::commit ( std::size_t size ) {
+		return reinterpret_cast< uint8_t* >( _aligned_malloc ( size, PAGE_ALIGN ) );
+	}
+
+	inline void VirtualMemory::uncommit ( uint8_t* data ) {
+		if ( data ) {
+			_aligned_free ( data );
 		}
 	}
 
@@ -72,6 +96,44 @@ namespace kubera
 			pages [ virt ]->region_base = base;
 		}
 		next_alloc = base + pages_needed * page_size;
+		return base;
+	}
+
+	inline uint64_t VirtualMemory::alloc_at ( uint64_t base_addr, std::size_t size, uint8_t prot ) {
+		uint64_t base = base_addr & ~( page_size - 1 );
+		std::size_t pages_needed = ( size + page_size - 1 ) / page_size;
+		uint64_t region_end = base + pages_needed * page_size;
+
+		auto it = regions.lower_bound ( base );
+		if ( it != regions.begin ( ) ) --it;
+		while ( it != regions.end ( ) && it->first < region_end ) {
+			if ( it->first + it->second.size > base ) {
+				return 0;
+			}
+			++it;
+		}
+
+		Region region { base, pages_needed * page_size, prot, prot };
+		regions [ base ] = region;
+		for ( std::size_t i = 0; i < pages_needed; i++ ) {
+			uint64_t virt = base + i * page_size;
+			if ( pages.find ( virt ) != pages.end ( ) ) {
+				regions.erase ( base );
+				for ( std::size_t j = 0; j < i; j++ ) {
+					pages.erase ( base + j * page_size );
+				}
+				return 0;
+			}
+			pages [ virt ] = std::make_unique<Page> ( );
+			pages [ virt ]->prot = prot;
+			pages [ virt ]->region_base = base;
+		}
+
+		// Update next_alloc if necessary
+		if ( region_end > next_alloc ) {
+			next_alloc = region_end;
+		}
+
 		return base;
 	}
 
@@ -104,7 +166,7 @@ namespace kubera
 			uint64_t virt = base + i * page_size;
 			auto page_it = pages.find ( virt );
 			if ( page_it != pages.end ( ) ) {
-				if ( page_it->second->data ) _aligned_free ( page_it->second->data );
+				uncommit ( page_it->second->data );
 				pages.erase ( page_it );
 			}
 		}
@@ -178,10 +240,16 @@ namespace kubera
 			if ( e.virt == virt_page ) {
 				if ( ( e.page->prot & access ) != access ) return nullptr;
 				if ( !e.page->present ) {
-					e.page->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) );
+					e.page->data = commit ( page_size );
 					if ( !e.page->data ) return nullptr;
 					std::memset ( e.page->data, 0, page_size );
 					e.page->present = true;
+				}
+				if ( ( access & PageProtection::READ ) != 0 ) {
+					auto* region = find_region ( addr );
+					if ( region && region->read_hook ) {
+						( *region->read_hook )( this, addr, page_size - ( addr - virt_page ) );
+					}
 				}
 				return e.page->data + ( addr - virt_page );
 			}
@@ -193,11 +261,47 @@ namespace kubera
 		cache_pos = ( cache_pos + 1 ) % cache.size ( );
 		if ( ( pg->prot & access ) != access ) return nullptr;
 		if ( !pg->present ) {
-			pg->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) );
+			pg->data = commit( page_size );
 			if ( !pg->data ) return nullptr;
 			std::memset ( pg->data, 0, page_size );
 			pg->present = true;
 		}
+
+		auto* region = find_region ( addr );
+		if ( region && region->read_hook ) {
+			( *region->read_hook )( this, addr, page_size - ( addr - virt_page ) );
+		}
+
+		return pg->data + ( addr - virt_page );
+	}
+
+	inline void* VirtualMemory::translate_bypass ( uint64_t addr ) {
+		uint64_t virt_page = addr & ~( page_size - 1 );
+		for ( auto& e : cache ) {
+			if ( e.virt == virt_page ) {
+				if ( !e.page->present ) {
+					e.page->data = commit ( page_size );
+					if ( !e.page->data ) return nullptr;
+					std::memset ( e.page->data, 0, page_size );
+					e.page->present = true;
+				}
+				return e.page->data + ( addr - virt_page );
+			}
+		}
+
+		auto it = pages.find ( virt_page );
+		if ( it == pages.end ( ) ) return nullptr;
+		Page* pg = it->second.get ( );
+		cache [ cache_pos ] = { virt_page, pg };
+		cache_pos = ( cache_pos + 1 ) % cache.size ( );
+
+		if ( !pg->present ) {
+			pg->data = commit ( page_size );
+			if ( !pg->data ) return nullptr;
+			std::memset ( pg->data, 0, page_size );
+			pg->present = true;
+		}
+
 		return pg->data + ( addr - virt_page );
 	}
 

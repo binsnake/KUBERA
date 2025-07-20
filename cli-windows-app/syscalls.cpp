@@ -5,6 +5,7 @@
 #include <cctype>
 #include "process.hpp"
 #include "syscall_host.hpp"
+#include "wintypes.hpp"
 using namespace kubera;
 
 #define SYSCALL_REG_DUMP(ctx) \
@@ -69,7 +70,7 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 	const auto handler_available = handler_map.contains ( syscall_id );
 	const auto has_name = handler_name_map.contains ( syscall_id );
 	if ( handler_available && handler_name_map.contains ( syscall_id ) ) {
-		std::println ( "[syscall - {}] {:#x} {:#x} {:#x} {:#x}", handler_name_map[syscall_id], SYSCALL_REG_DUMP ( ctx ) );
+		std::println ( "[syscall - {}] {:#x} {:#x} {:#x} {:#x}", handler_name_map [ syscall_id ], SYSCALL_REG_DUMP ( ctx ) );
 	}
 
 	if ( handler_available ) {
@@ -87,22 +88,53 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 	}
 }
 
+#define GET_RSP(ctx) ctx.get_reg_internal<KubRegister::RSP, Register::RSP, uint64_t> ( )
+#define TRANSLATE(ctx, x, y) (uint64_t)ctx.get_virtual_memory ( )->translate(x, y) 
 #define ARG1(ctx) ctx.get_reg_internal<kubera::KubRegister::R10, Register::R10, uint64_t> ( )
 #define ARG2(ctx) ctx.get_reg_internal<kubera::KubRegister::RDX, Register::RDX, uint64_t> ( )
 #define ARG3(ctx) ctx.get_reg_internal<kubera::KubRegister::R8, Register::R8, uint64_t> ( )
 #define ARG4(ctx) ctx.get_reg_internal<kubera::KubRegister::R9, Register::R9, uint64_t> ( )
-#define ARG5(ctx) *(uint64_t*)(ctx.get_virtual_memory ( )->translate ( ctx.get_reg ( Register::RSP, 8 ) + 0x28, PageProtection::READ ) )
-#define ARG6(ctx) *(uint64_t*)(ctx.get_virtual_memory ( )->translate ( ctx.get_reg ( Register::RSP, 8 ) + 0x30, PageProtection::READ ) )
+#define ARG5(ctx) *(uint64_t*)(TRANSLATE (ctx, GET_RSP(ctx) + 0x28, PageProtection::READ ))
+#define ARG6(ctx) *(uint64_t*)(TRANSLATE (ctx, GET_RSP(ctx) + 0x30, PageProtection::READ ))
 #define SET_ARG1(ctx, val) ctx.set_reg_internal<kubera::KubRegister::R10, Register::R10, uint64_t> ( val )
 #define SET_ARG2(ctx, val) ctx.set_reg_internal<kubera::KubRegister::RDX, Register::RDX, uint64_t> ( val )
 #define SET_ARG3(ctx, val) ctx.set_reg_internal<kubera::KubRegister::R8, Register::R8, uint64_t> ( val )
 #define SET_ARG4(ctx, val) ctx.set_reg_internal<kubera::KubRegister::R9, Register::R9, uint64_t> ( val )
-#define SET_ARG5(ctx, val) *(uint64_t*)(ctx.get_virtual_memory ( )->translate ( ctx.get_reg ( Register::RSP, 8 ) + 0x28, PageProtection::READ | PageProtection::WRITE ) ) = val
-#define SET_ARG6(ctx, val) *(uint64_t*)(ctx.get_virtual_memory ( )->translate ( ctx.get_reg ( Register::RSP, 8 ) + 0x30, PageProtection::READ | PageProtection::WRITE ) ) = val
+#define SET_ARG5(ctx, val) *(uint64_t*)(TRANSLATE (ctx, GET_RSP(ctx) + 0x28, PageProtection::READ | PageProtection::WRITE ) ) = val
+#define SET_ARG6(ctx, val) *(uint64_t*)(TRANSLATE (ctx, GET_RSP(ctx) + 0x30, PageProtection::READ | PageProtection::WRITE ) ) = val
 #define SET_RETURN(ctx, value) ctx.set_reg_internal<KubRegister::RAX, Register::RAX, uint64_t>( value )
 
 void NtCreateEvent ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
-	dispatch_syscall<5> ( syscall_id, ctx );
+	auto* vm = ctx.get_virtual_memory ( );
+	auto* attributes = reinterpret_cast< windows::_OBJECT_ATTRIBUTES* >( vm->translate_bypass ( ARG3 ( ctx ) ) );
+	std::u16string name;
+	if ( attributes ) {
+		if ( attributes->ObjectName ) {
+			name.resize ( attributes->ObjectName->Length / 2 );
+			memcpy ( name.data ( ), attributes->ObjectName->Buffer, attributes->ObjectName->Length );
+		}
+	}
+
+	if ( !name.empty ( ) ) {
+		for ( auto& entry : process::event_mgr ) {
+			if ( entry.second->name == name ) {
+				++entry.second->ref_count;
+				auto handle = process::make_handle ( entry.first ).bits;
+				SET_ARG1 ( ctx, handle );
+				return SET_RETURN ( ctx, 0x40000000L ); // STATUS_OBJECT_NAME_EXISTS
+			}
+		}
+	}
+
+	std::println ( "[syscall - NtCreateEvent] Creating event {}", process::helpers::u16_to_string ( name ) );
+	process::WinEvent e { name, static_cast< process::EVENT_TYPE >( ARG4 ( ctx ) ), static_cast< bool >( ARG5 ( ctx ) ) };
+	auto object_exp = process::event_mgr.create_object ( name, static_cast< process::EVENT_TYPE >( ARG4 ( ctx ) ), static_cast< bool >( ARG5 ( ctx ) ) );
+	if ( object_exp.has_value ( ) ) {
+		SET_ARG1 ( ctx, object_exp->bits );
+		return SET_RETURN ( ctx, 0x0 ); // STATUS_SUCCESS
+	}
+
+	SET_RETURN ( ctx, 0x32 ); // ERROR_NOT_SUPPORTED
 }
 
 void NtManageHotPatch ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
@@ -110,13 +142,24 @@ void NtManageHotPatch ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 }
 
 void NtQueryVirtualMemory ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
-	if ( ARG1 ( ctx ) != ~0ULL ) {
+	if ( ARG1 ( ctx ) != process::CURRENT_PROCESS_HANDLE ) {
 		SET_RETURN ( ctx, 0xC00000BBL );
 		std::println ( "[syscall - NtQueryVirtualMemory] Attempted on foreign process" );
 		return;
 	}
-
+	auto rsp = GET_RSP ( ctx );
+	auto noob = ctx.get_virtual_memory()->read<uint64_t>( rsp + 0x28 );
+	auto noob1 = ctx.get_virtual_memory()->read<uint64_t>(rsp + 0x20 );
+	auto noob3 = ctx.get_virtual_memory()->read<uint64_t>(rsp + 0x18 );
+	auto noob4 = ctx.get_virtual_memory()->read<uint64_t>(rsp + 0x10 );
+	auto noob5 = ctx.get_virtual_memory()->read<uint64_t>(rsp + 0x08 );
+	auto noob2 = *( uint64_t* ) noob;
+	auto base_address = ARG2 ( ctx );
 	auto info_class = ARG3 ( ctx );
+	auto memory_buffer = ARG4 ( ctx );
+	auto buffer_len = ARG5 ( ctx );
+	auto return_length = ARG6 ( ctx );
+
 	if ( info_class == 4 || // MemoryWorkingSetExInformation
 			 info_class == 14 ) {// MemoryImageExtensionInformation
 		SET_RETURN ( ctx, 0xC00000BBL );
@@ -127,34 +170,34 @@ void NtQueryVirtualMemory ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 		case 4: // MemoryWorkingSetExInformation
 		case 14: // MemoryImageExtensionInformation
 		{
-			SET_RETURN ( ctx, 0xC00000BBL );
+			SET_RETURN ( ctx, 0xC00000BBL ); // ERROR_NOT_SUPPORTED
 			std::println ( "[syscall - NtQueryVirtualMemory] Unsupported class {:#x}", info_class );
 			return;
 		}
 		case 3: // MemoryBasicInformation
 		{
-			if ( ARG6 ( ctx ) != 0 ) {
+			if ( return_length != 0 ) {
 				SET_ARG6 ( ctx, sizeof ( WinMemoryBasicInformation ) );
 			}
 
-			if ( ARG5 ( ctx ) < sizeof ( WinMemoryBasicInformation ) ) {
+			if ( buffer_len < sizeof ( WinMemoryBasicInformation ) ) {
 				return SET_RETURN ( ctx, 0xC0000023L );// STATUS_BUFFER_TOO_SMALL
 			}
 
 			auto* vm = ctx.get_virtual_memory ( );
-			auto mbi = vm->get_memory_basic_information ( ARG2 ( ctx ) );
-			auto mbi_addr = vm->translate ( ARG4 ( ctx ), PageProtection::READ | PageProtection::WRITE );
+			auto mbi = vm->get_memory_basic_information ( base_address );
+			auto mbi_addr = vm->translate ( memory_buffer, PageProtection::READ | PageProtection::WRITE );
 			memcpy ( mbi_addr, &mbi, sizeof ( WinMemoryBasicInformation ) );
 
 			return SET_RETURN ( ctx, 0x0 ); // STATUS_SUCCESS
 		}
-		case 6:
+		case 6: // MemoryImageInformation
 		{
-			if ( ARG6 ( ctx ) != 0 ) {
+			if ( return_length != 0 ) {
 				SET_ARG6 ( ctx, sizeof ( WinMemoryImageInformation ) );
 			}
 
-			if ( ARG5 ( ctx ) < sizeof ( WinMemoryImageInformation ) ) {
+			if ( buffer_len < sizeof ( WinMemoryImageInformation ) ) {
 				return SET_RETURN ( ctx, 0xC0000023L );// STATUS_BUFFER_TOO_SMALL
 			}
 

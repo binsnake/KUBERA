@@ -136,6 +136,7 @@ int main ( ) {
 
 	syscall_handlers::build_syscall_map ( ctx, mm );
 	windows::setup_fake_peb ( ctx, reinterpret_cast< uint64_t >( windows::ntdll ) );
+	windows::setup_user_shared_data ( ctx );
 
 	char buf [ 128 ] { 0 };
 

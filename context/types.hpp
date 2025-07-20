@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 #include <unordered_map>
+#include <optional>
+#include <functional>
 #include <vector>
 #include "x86.hpp"
 
@@ -176,6 +178,7 @@ namespace kubera
 		std::size_t size { 0 };
 		uint8_t allocation_protect { PageProtection::NONE };
 		uint8_t current_protect { PageProtection::NONE };
+		std::optional<std::function<void ( class VirtualMemory*, uint64_t addr, std::size_t size )>> read_hook;
 	};
 
 	struct WinMemoryBasicInformation {

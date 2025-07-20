@@ -18,6 +18,7 @@ namespace windows
 
 	inline uint64_t peb_address = 0;
 	void setup_fake_peb ( kubera::KUBERA& ctx, uint64_t image_base );
+	void setup_user_shared_data ( kubera::KUBERA& ctx );
 
 	inline uint64_t ldr_initialize_thunk = 0ULL;
 	inline uint64_t rtl_user_thread_start = 0ULL;
@@ -230,6 +231,21 @@ namespace windows
 		USHORT Reserved [ 3 ];                                                     //0xa
 	};
 
+	struct _UNICODE_STRING {
+		USHORT Length;                                                          //0x0
+		USHORT MaximumLength;                                                   //0x2
+		char16_t* Buffer;                                                          //0x8
+	};
+
+	struct _OBJECT_ATTRIBUTES {
+		ULONG Length;                                                           //0x0
+		void* RootDirectory;                                                    //0x8
+		_UNICODE_STRING* ObjectName;                                     //0x10
+		ULONG Attributes;                                                       //0x18
+		void* SecurityDescriptor;                                               //0x20
+		void* SecurityQualityOfService;                                         //0x28
+	};
+
 	struct TEB64 {
 		_NT_TIB64 NtTib;                                                 //0x0
 		ULONGLONG EnvironmentPointer;                                           //0x38
@@ -378,5 +394,189 @@ namespace windows
 		ULONGLONG HeapWalkContext;                                              //0x1858
 		struct _GROUP_AFFINITY64 PrimaryGroupAffinity;                          //0x1860
 		ULONG Rcu [ 2 ];                                                           //0x1870
+	};
+
+	struct _KSYSTEM_TIME {
+		ULONG LowPart;                                                          //0x0
+		LONG High1Time;                                                         //0x4
+		LONG High2Time;                                                         //0x8
+	};
+
+	struct _XSTATE_FEATURE {
+		ULONG Offset;                                                           //0x0
+		ULONG Size;                                                             //0x4
+	};
+
+	struct _XSTATE_CONFIGURATION {
+		ULONGLONG EnabledFeatures;                                              //0x0
+		ULONGLONG EnabledVolatileFeatures;                                      //0x8
+		ULONG Size;                                                             //0x10
+		union {
+			ULONG ControlFlags;                                                 //0x14
+			struct {
+				ULONG OptimizedSave : 1;                                          //0x14
+				ULONG CompactionEnabled : 1;                                      //0x14
+				ULONG ExtendedFeatureDisable : 1;                                 //0x14
+			};
+		};
+		struct _XSTATE_FEATURE Features [ 64 ];                                    //0x18
+		ULONGLONG EnabledSupervisorFeatures;                                    //0x218
+		ULONGLONG AlignedFeatures;                                              //0x220
+		ULONG AllFeatureSize;                                                   //0x228
+		ULONG AllFeatures [ 64 ];                                                  //0x22c
+		ULONGLONG EnabledUserVisibleSupervisorFeatures;                         //0x330
+		ULONGLONG ExtendedFeatureDisableFeatures;                               //0x338
+		ULONG AllNonLargeFeatureSize;                                           //0x340
+		USHORT MaxSveVectorLength;                                              //0x344
+		USHORT Spare1;                                                          //0x346
+	};
+
+	enum _NT_PRODUCT_TYPE {
+		NtProductWinNt = 1,
+		NtProductLanManNt = 2,
+		NtProductServer = 3
+	};
+
+	enum _ALTERNATIVE_ARCHITECTURE_TYPE {
+		StandardDesign = 0,
+		NEC98x86 = 1,
+		EndAlternatives = 2
+	};
+
+	struct _KUSER_SHARED_DATA {
+		ULONG TickCountLowDeprecated;                                           //0x0
+		ULONG TickCountMultiplier;                                              //0x4
+		volatile _KSYSTEM_TIME InterruptTime;                            //0x8
+		volatile _KSYSTEM_TIME SystemTime;                               //0x14
+		volatile _KSYSTEM_TIME TimeZoneBias;                             //0x20
+		USHORT ImageNumberLow;                                                  //0x2c
+		USHORT ImageNumberHigh;                                                 //0x2e
+		char16_t NtSystemRoot [ 260 ];                                                //0x30
+		ULONG MaxStackTraceDepth;                                               //0x238
+		ULONG CryptoExponent;                                                   //0x23c
+		ULONG TimeZoneId;                                                       //0x240
+		ULONG LargePageMinimum;                                                 //0x244
+		ULONG AitSamplingValue;                                                 //0x248
+		ULONG AppCompatFlag;                                                    //0x24c
+		ULONGLONG RNGSeedVersion;                                               //0x250
+		ULONG GlobalValidationRunlevel;                                         //0x258
+		volatile LONG TimeZoneBiasStamp;                                        //0x25c
+		ULONG NtBuildNumber;                                                    //0x260
+		_NT_PRODUCT_TYPE NtProductType;                                    //0x264
+		UCHAR ProductTypeIsValid;                                               //0x268
+		UCHAR Reserved0 [ 1 ];                                                     //0x269
+		USHORT NativeProcessorArchitecture;                                     //0x26a
+		ULONG NtMajorVersion;                                                   //0x26c
+		ULONG NtMinorVersion;                                                   //0x270
+		UCHAR ProcessorFeatures [ 64 ];                                            //0x274
+		ULONG Reserved1;                                                        //0x2b4
+		ULONG Reserved3;                                                        //0x2b8
+		volatile ULONG TimeSlip;                                                //0x2bc
+		_ALTERNATIVE_ARCHITECTURE_TYPE AlternativeArchitecture;            //0x2c0
+		ULONG BootId;                                                           //0x2c4
+		LARGE_INTEGER SystemExpirationDate;                              //0x2c8
+		ULONG SuiteMask;                                                        //0x2d0
+		UCHAR KdDebuggerEnabled;                                                //0x2d4
+		union {
+			UCHAR MitigationPolicies;                                           //0x2d5
+			struct {
+				UCHAR NXSupportPolicy : 2;                                        //0x2d5
+				UCHAR SEHValidationPolicy : 2;                                    //0x2d5
+				UCHAR CurDirDevicesSkippedForDlls : 2;                            //0x2d5
+				UCHAR Reserved : 2;                                               //0x2d5
+			};
+		};
+		USHORT CyclesPerYield;                                                  //0x2d6
+		volatile ULONG ActiveConsoleId;                                         //0x2d8
+		volatile ULONG DismountCount;                                           //0x2dc
+		ULONG ComPlusPackage;                                                   //0x2e0
+		ULONG LastSystemRITEventTickCount;                                      //0x2e4
+		ULONG NumberOfPhysicalPages;                                            //0x2e8
+		UCHAR SafeBootMode;                                                     //0x2ec
+		UCHAR VirtualizationFlags;                                              //0x2ed
+		UCHAR Reserved12 [ 2 ];                                                    //0x2ee
+		union {
+			ULONG SharedDataFlags;                                              //0x2f0
+			struct {
+				ULONG DbgErrorPortPresent : 1;                                    //0x2f0
+				ULONG DbgElevationEnabled : 1;                                    //0x2f0
+				ULONG DbgVirtEnabled : 1;                                         //0x2f0
+				ULONG DbgInstallerDetectEnabled : 1;                              //0x2f0
+				ULONG DbgLkgEnabled : 1;                                          //0x2f0
+				ULONG DbgDynProcessorEnabled : 1;                                 //0x2f0
+				ULONG DbgConsoleBrokerEnabled : 1;                                //0x2f0
+				ULONG DbgSecureBootEnabled : 1;                                   //0x2f0
+				ULONG DbgMultiSessionSku : 1;                                     //0x2f0
+				ULONG DbgMultiUsersInSessionSku : 1;                              //0x2f0
+				ULONG DbgStateSeparationEnabled : 1;                              //0x2f0
+				ULONG SpareBits : 21;                                             //0x2f0
+			};
+		};
+		ULONG DataFlagsPad [ 1 ];                                                  //0x2f4
+		ULONGLONG TestRetInstruction;                                           //0x2f8
+		LONGLONG QpcFrequency;                                                  //0x300
+		ULONG SystemCall;                                                       //0x308
+		ULONG Reserved2;                                                        //0x30c
+		ULONGLONG FullNumberOfPhysicalPages;                                    //0x310
+		ULONGLONG SystemCallPad [ 1 ];                                             //0x318
+		union {
+			volatile _KSYSTEM_TIME TickCount;                            //0x320
+			volatile ULONGLONG TickCountQuad;                                   //0x320
+			ULONG ReservedTickCountOverlay [ 3 ];                                  //0x320
+		};
+		ULONG TickCountPad [ 1 ];                                                  //0x32c
+		ULONG Cookie;                                                           //0x330
+		ULONG CookiePad [ 1 ];                                                     //0x334
+		LONGLONG ConsoleSessionForegroundProcessId;                             //0x338
+		ULONGLONG TimeUpdateLock;                                               //0x340
+		ULONGLONG BaselineSystemTimeQpc;                                        //0x348
+		ULONGLONG BaselineInterruptTimeQpc;                                     //0x350
+		ULONGLONG QpcSystemTimeIncrement;                                       //0x358
+		ULONGLONG QpcInterruptTimeIncrement;                                    //0x360
+		UCHAR QpcSystemTimeIncrementShift;                                      //0x368
+		UCHAR QpcInterruptTimeIncrementShift;                                   //0x369
+		USHORT UnparkedProcessorCount;                                          //0x36a
+		ULONG EnclaveFeatureMask [ 4 ];                                            //0x36c
+		ULONG TelemetryCoverageRound;                                           //0x37c
+		USHORT UserModeGlobalLogger [ 16 ];                                        //0x380
+		ULONG ImageFileExecutionOptions;                                        //0x3a0
+		ULONG LangGenerationCount;                                              //0x3a4
+		ULONGLONG Reserved4;                                                    //0x3a8
+		volatile ULONGLONG InterruptTimeBias;                                   //0x3b0
+		volatile ULONGLONG QpcBias;                                             //0x3b8
+		ULONG ActiveProcessorCount;                                             //0x3c0
+		volatile UCHAR ActiveGroupCount;                                        //0x3c4
+		UCHAR Reserved9;                                                        //0x3c5
+		union {
+			USHORT QpcData;                                                     //0x3c6
+			struct {
+				volatile UCHAR QpcBypassEnabled;                                //0x3c6
+				UCHAR QpcReserved;                                              //0x3c7
+			};
+		};
+		LARGE_INTEGER TimeZoneBiasEffectiveStart;                        //0x3c8
+		LARGE_INTEGER TimeZoneBiasEffectiveEnd;                          //0x3d0
+		_XSTATE_CONFIGURATION XState;                                    //0x3d8
+		_KSYSTEM_TIME FeatureConfigurationChangeStamp;                   //0x720
+		ULONG Spare;                                                            //0x72c
+		ULONGLONG UserPointerAuthMask;                                          //0x730
+		ULONG Reserved10 [ 210 ];                                                  //0x738
+	};
+
+#pragma pack(push)
+#pragma pack(1)
+	struct handle_value {
+		uint64_t id : 32;
+		uint64_t type : 16;
+		uint64_t padding : 14;
+		uint64_t is_system : 1;
+		uint64_t is_pseudo : 1;
+	};
+#pragma pack(pop)
+
+	union HANDLE {
+		handle_value value;
+		uint64_t bits;
+		std::uint64_t h;
 	};
 };

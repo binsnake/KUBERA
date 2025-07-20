@@ -24,9 +24,10 @@
     <ClCompile Include="windows.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="handle_manager.hpp" />
+    <ClInclude Include="handle_registry.hpp" />
     <ClInclude Include="module_manager.hpp" />
     <ClInclude Include="process.hpp" />
-    <ClInclude Include="process_objects.hpp" />
     <ClInclude Include="syscalls.hpp" />
     <ClInclude Include="syscall_host.hpp" />
     <ClInclude Include="teb.hpp" />

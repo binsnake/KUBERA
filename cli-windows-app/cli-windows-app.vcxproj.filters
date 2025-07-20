@@ -41,10 +41,13 @@
     <ClInclude Include="process.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="process_objects.hpp">
+    <ClInclude Include="syscall_host.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="syscall_host.hpp">
+    <ClInclude Include="handle_manager.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="handle_registry.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
