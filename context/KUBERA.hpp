@@ -96,11 +96,16 @@ namespace kubera
 			return cpu->registers [ KubRegister::RIP ];
 		}
 
+		// Returns the value of the RIP register
+		uint64_t rip ( ) const noexcept {
+			return cpu->registers [ KubRegister::RIP ];
+		}
+
 		std::size_t fetch_instruction_bytes ( uint64_t addr, uint8_t* buffer, std::size_t max_bytes ) {
 			std::size_t fetched = 0;
 			uint64_t current = addr;
 			while ( fetched < max_bytes ) {
-				void* src = memory->translate ( current, VirtualMemory::EXEC | VirtualMemory::READ );
+				void* src = memory->translate ( current, PageProtection::EXEC | PageProtection::READ );
 				if ( !src ) {
 					return 0;
 				}
@@ -290,9 +295,7 @@ namespace kubera
 		template <KubRegister reg, Register iced_reg, typename Type>
 		Type get_reg_internal ( ) {
 			if constexpr ( reg == KubRegister::RIP ) {
-				const auto current_instr_ip = decoder->last_successful_ip ( );
-				const auto current_instr_len = decoder->last_successful_length ( );
-				return current_instr_ip + current_instr_len;
+				return static_cast<Type>(rip ( ));
 			}
 
 			constexpr auto access_mask = get_access_mask_internal<iced_reg, sizeof ( Type )> ( );

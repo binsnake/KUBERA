@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <unordered_map>
+#include <map>
 #include <array>
 #include <cstring>
 #include <memory>
@@ -10,16 +11,8 @@
 
 namespace kubera
 {
-
 	class VirtualMemory {
 	public:
-		enum Protection : uint8_t {
-			NONE = 0,
-			READ = 1 << 0,
-			WRITE = 1 << 1,
-			EXEC = 1 << 2
-		};
-
 		explicit VirtualMemory ( std::size_t page_sz = 0x1000 );
 		~VirtualMemory ( );
 
@@ -27,44 +20,56 @@ namespace kubera
 		uint64_t load ( const void* data, std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 );
 		void free ( uint64_t addr, std::size_t size );
 		bool protect ( uint64_t addr, std::size_t size, uint8_t prot );
+		uint32_t map_to_win_protect ( uint64_t addr );
+		WinMemoryBasicInformation get_memory_basic_information ( uint64_t addr );
+		Page* get_page ( uint64_t addr );
 
 		template<typename T> T read ( uint64_t addr );
 		template<typename T> void write ( uint64_t addr, T val );
+		void read_bytes ( uint64_t addr, void* dest, std::size_t size, uint8_t access = PageProtection::READ );
+		void write_bytes ( uint64_t addr, const void* src, std::size_t size, uint8_t access = PageProtection::WRITE );
 		void* translate ( uint64_t addr, uint8_t access );
 		bool check ( uint64_t addr, std::size_t size, uint8_t access );
 
 		std::size_t page_size;
-	private:
-		struct Page {
-			uint8_t* data { nullptr };
-			uint8_t prot { Protection::NONE };
-			bool present { false };
-		};
 
-		std::unordered_map<uint64_t, Page> pages;
+	private:
+		std::unordered_map<uint64_t, std::unique_ptr<Page>> pages;
+		std::map<uint64_t, Region> regions;
 		uint64_t next_alloc { 0x100000000ULL };
 
 		struct CacheEntry { uint64_t virt; Page* page; };
 		std::array<CacheEntry, 16> cache;
 		std::size_t cache_pos { 0 };
+
+		const Region* find_region ( uint64_t addr ) const;
+		void split_region ( uint64_t base, uint64_t split_start, uint64_t split_end, uint8_t new_protect );
 	};
 
 	inline VirtualMemory::VirtualMemory ( std::size_t ps ) : page_size ( ps ) {
-		for ( auto& c : cache ) c.virt = UINT64_MAX;
+		for ( auto& c : cache ) {
+			c.virt = UINT64_MAX;
+		}
 	}
 
 	inline VirtualMemory::~VirtualMemory ( ) {
 		for ( auto& [v, p] : pages ) {
-			if ( p.data ) std::free ( p.data );
+			if ( p->data ) {
+				_aligned_free ( p->data );
+			}
 		}
 	}
 
 	inline uint64_t VirtualMemory::alloc ( std::size_t size, uint8_t prot, std::size_t alignment ) {
 		uint64_t base = ( next_alloc + alignment - 1 ) & ~( alignment - 1 );
 		std::size_t pages_needed = ( size + page_size - 1 ) / page_size;
+		Region region { base, pages_needed * page_size, prot, prot };
+		regions [ base ] = region;
 		for ( std::size_t i = 0; i < pages_needed; i++ ) {
 			uint64_t virt = base + i * page_size;
-			pages [ virt ] = Page { nullptr, prot, false };
+			pages [ virt ] = std::make_unique<Page> ( );
+			pages [ virt ]->prot = prot;
+			pages [ virt ]->region_base = base;
 		}
 		next_alloc = base + pages_needed * page_size;
 		return base;
@@ -72,45 +77,99 @@ namespace kubera
 
 	inline uint64_t VirtualMemory::load ( const void* data, std::size_t size, uint8_t prot, std::size_t alignment ) {
 		uint64_t addr = alloc ( size, prot, alignment );
-		const uint8_t* src = static_cast< const uint8_t* > ( data );
-		std::size_t remaining = size;
-		uint64_t current = addr;
-		while ( remaining > 0 ) {
-			void* dst = translate ( current, Protection::WRITE );
-			if ( !dst ) {
-				return 0;
-			}
-			std::size_t offset = current % page_size;
-			std::size_t to_copy = std::min ( remaining, page_size - offset );
-			std::memcpy ( dst, src, to_copy );
-			src += to_copy;
-			current += to_copy;
-			remaining -= to_copy;
-		}
+		write_bytes ( addr, data, size, PageProtection::WRITE );
 		return addr;
 	}
 
 	inline void VirtualMemory::free ( uint64_t addr, std::size_t size ) {
+		uint64_t base = addr & ~( page_size - 1 );
 		std::size_t pages_needed = ( size + page_size - 1 ) / page_size;
+		uint64_t region_end = base + pages_needed * page_size;
+
+		auto it = regions.lower_bound ( base );
+		if ( it != regions.begin ( ) ) --it;
+		while ( it != regions.end ( ) && it->first < region_end ) {
+			if ( it->first + it->second.size > base ) {
+				auto next = std::next ( it );
+				regions.erase ( it );
+				it = next;
+			}
+			else {
+				++it;
+			}
+		}
+
+		// Free pages
 		for ( std::size_t i = 0; i < pages_needed; i++ ) {
-			uint64_t virt = ( addr & ~( page_size - 1 ) ) + i * page_size;
-			auto it = pages.find ( virt );
-			if ( it != pages.end ( ) ) {
-				if ( it->second.data ) _aligned_free ( it->second.data );
-				pages.erase ( it );
+			uint64_t virt = base + i * page_size;
+			auto page_it = pages.find ( virt );
+			if ( page_it != pages.end ( ) ) {
+				if ( page_it->second->data ) _aligned_free ( page_it->second->data );
+				pages.erase ( page_it );
 			}
 		}
 	}
 
 	inline bool VirtualMemory::protect ( uint64_t addr, std::size_t size, uint8_t prot ) {
+		uint64_t start = addr & ~( page_size - 1 );
 		std::size_t pages_needed = ( size + page_size - 1 ) / page_size;
+		uint64_t end = start + pages_needed * page_size;
+
+		auto* region = find_region ( addr );
+		if ( !region ) {
+			return false;
+		}
+
+		split_region ( region->base_address, start, end, prot );
 		for ( std::size_t i = 0; i < pages_needed; i++ ) {
-			uint64_t virt = ( addr & ~( page_size - 1 ) ) + i * page_size;
+			uint64_t virt = start + i * page_size;
 			auto it = pages.find ( virt );
 			if ( it == pages.end ( ) ) return false;
-			it->second.prot = prot;
+			it->second->prot = prot;
 		}
 		return true;
+	}
+
+	inline const Region* VirtualMemory::find_region ( uint64_t addr ) const {
+		auto it = regions.upper_bound ( addr );
+		if ( it == regions.begin ( ) ) {
+			return nullptr;
+		}
+		--it;
+		if ( it->first <= addr && addr < it->first + it->second.size ) {
+			return &it->second;
+		}
+		return nullptr;
+	}
+
+	inline void VirtualMemory::split_region ( uint64_t base, uint64_t split_start, uint64_t split_end, uint8_t new_protect ) {
+		auto it = regions.find ( base );
+		if ( it == regions.end ( ) ) return;
+
+		Region old_region = it->second;
+		regions.erase ( it );
+
+		if ( split_start > base ) {
+			Region before { base, static_cast< std::size_t >( split_start - base ), old_region.allocation_protect, old_region.current_protect };
+			regions [ base ] = before;
+		}
+
+		Region modified { split_start, static_cast< std::size_t >( split_end - split_start ), old_region.allocation_protect, new_protect };
+		regions [ split_start ] = modified;
+
+		if ( split_end < base + old_region.size ) {
+			Region after { split_end, static_cast< std::size_t > ( base + old_region.size - split_end ), old_region.allocation_protect, old_region.current_protect };
+			regions [ split_end ] = after;
+		}
+
+		for ( auto& [virt, page] : pages ) {
+			if ( virt >= base && virt < base + old_region.size ) {
+				auto* new_region = find_region ( virt );
+				if ( new_region ) {
+					page->region_base = new_region->base_address;
+				}
+			}
+		}
 	}
 
 	inline void* VirtualMemory::translate ( uint64_t addr, uint8_t access ) {
@@ -119,7 +178,8 @@ namespace kubera
 			if ( e.virt == virt_page ) {
 				if ( ( e.page->prot & access ) != access ) return nullptr;
 				if ( !e.page->present ) {
-					e.page->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) ); __assume( e.page->data != nullptr );
+					e.page->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) );
+					if ( !e.page->data ) return nullptr;
 					std::memset ( e.page->data, 0, page_size );
 					e.page->present = true;
 				}
@@ -128,14 +188,13 @@ namespace kubera
 		}
 		auto it = pages.find ( virt_page );
 		if ( it == pages.end ( ) ) return nullptr;
-		Page* pg = &it->second;
+		Page* pg = it->second.get ( );
 		cache [ cache_pos ] = { virt_page, pg };
 		cache_pos = ( cache_pos + 1 ) % cache.size ( );
-		if ( ( pg->prot & access ) != access ) {
-			return nullptr;
-		}
+		if ( ( pg->prot & access ) != access ) return nullptr;
 		if ( !pg->present ) {
-			pg->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) ); __assume( pg->data != nullptr );
+			pg->data = static_cast< uint8_t* >( _aligned_malloc ( page_size, page_size ) );
+			if ( !pg->data ) return nullptr;
 			std::memset ( pg->data, 0, page_size );
 			pg->present = true;
 		}
@@ -150,17 +209,65 @@ namespace kubera
 		return true;
 	}
 
+	inline WinMemoryBasicInformation VirtualMemory::get_memory_basic_information ( uint64_t addr ) {
+		WinMemoryBasicInformation mbi { 0 };
+		auto* region = find_region ( addr );
+		if ( region ) {
+			mbi.base_address = region->base_address;
+			mbi.allocation_base = region->base_address;
+			mbi.allocation_protect = map_to_win_protect ( region->base_address );
+			mbi.region_size = region->size;
+			mbi.protect = map_to_win_protect ( addr );
+			mbi.state = 0x1000;
+			mbi.type = 0x20000;
+		}
+		return mbi;
+	}
+
+	inline Page* VirtualMemory::get_page ( uint64_t addr ) {
+		auto it = pages.find ( addr & ~( page_size - 1 ) );
+		if ( it == pages.end ( ) ) return nullptr;
+		return it->second.get ( );
+	}
+
+	inline uint32_t VirtualMemory::map_to_win_protect ( uint64_t addr ) {
+		auto* region = find_region ( addr );
+		if ( !region ) {
+			return 0x01; // PAGE_NOACCESS
+		}
+		const auto protection = region->current_protect;
+		const auto executable = ( protection & PageProtection::EXEC ) != PageProtection::NONE;
+		const auto readable = ( protection & PageProtection::READ ) != PageProtection::NONE;
+		const auto writable = ( protection & PageProtection::WRITE ) != PageProtection::NONE;
+
+		if ( !readable ) {
+			return 0x01;// PAGE_NOACCESS
+		}
+
+		if ( executable && writable ) {
+			return 0x40; // PAGE_EXECUTE_READWRITE
+		}
+
+		if ( writable ) {
+			return 0x04; // PAGE_READWRITE
+		}
+
+		if ( executable ) {
+			return 0x20; // PAGE_EXECUTE_READ
+		}
+
+		return 0x02; // PAGE_READONLY
+	}
+
 	template<typename T>
 	inline T VirtualMemory::read ( uint64_t addr ) {
 		T val {};
-		uint8_t* dest = reinterpret_cast< uint8_t* > ( &val );
+		uint8_t* dest = reinterpret_cast< uint8_t* >( &val );
 		std::size_t remaining = sizeof ( T );
 		uint64_t current = addr;
 		while ( remaining > 0 ) {
-			void* src = translate ( current, Protection::READ );
-			if ( !src ) {
-				return T {};
-			}
+			void* src = translate ( current, PageProtection::READ );
+			if ( !src ) return T {};
 			std::size_t offset = current % page_size;
 			std::size_t to_copy = std::min ( remaining, page_size - offset );
 			std::memcpy ( dest, src, to_copy );
@@ -207,10 +314,8 @@ namespace kubera
 		std::size_t remaining = sizeof ( T );
 		uint64_t current = addr;
 		while ( remaining > 0 ) {
-			void* dest = translate ( current, Protection::WRITE );
-			if ( !dest ) {
-				return;
-			}
+			void* dest = translate ( current, PageProtection::WRITE );
+			if ( !dest ) return;
 			std::size_t offset = current % page_size;
 			std::size_t to_copy = std::min ( remaining, page_size - offset );
 			std::memcpy ( dest, src, to_copy );
@@ -244,6 +349,40 @@ namespace kubera
 		}
 	}
 
+	inline void VirtualMemory::read_bytes ( uint64_t addr, void* dest, std::size_t size, uint8_t access ) {
+		uint8_t* d = static_cast< uint8_t* > ( dest );
+		std::size_t remaining = size;
+		uint64_t current = addr;
+		while ( remaining > 0 ) {
+			void* src = translate ( current, access );
+			if ( !src ) {
+				std::memset ( d, 0, remaining );
+				return;
+			}
+			std::size_t offset = current % page_size;
+			std::size_t to_copy = std::min ( remaining, page_size - offset );
+			std::memcpy ( d, src, to_copy );
+			d += to_copy;
+			current += to_copy;
+			remaining -= to_copy;
+		}
+	}
+
+	inline void VirtualMemory::write_bytes ( uint64_t addr, const void* src, std::size_t size, uint8_t access ) {
+		const uint8_t* s = static_cast< const uint8_t* >( src );
+		std::size_t remaining = size;
+		uint64_t current = addr;
+		while ( remaining > 0 ) {
+			void* dest = translate ( current, access );
+			if ( !dest ) return;
+			std::size_t offset = current % page_size;
+			std::size_t to_copy = std::min ( remaining, page_size - offset );
+			std::memcpy ( dest, s, to_copy );
+			s += to_copy;
+			current += to_copy;
+			remaining -= to_copy;
+		}
+	}
 } // namespace kubera
 
 #endif

@@ -13,8 +13,8 @@ inline windows::TEB64* NtCurrentTeb64 ( ) {
 
 void windows::setup_fake_peb ( kubera::KUBERA& ctx, uint64_t image_base ) {
 	auto* vm = ctx.get_virtual_memory ( );
-	peb_address = vm->alloc ( sizeof ( PEB64 ), kubera::VirtualMemory::READ | kubera::VirtualMemory::WRITE );
-	auto* mem = static_cast< PEB64* >( vm->translate ( peb_address, kubera::VirtualMemory::WRITE ) );
+	peb_address = vm->alloc ( sizeof ( PEB64 ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	auto* mem = static_cast< PEB64* >( vm->translate ( peb_address, kubera::PageProtection::WRITE ) );
 	std::memset ( mem, 0, sizeof ( PEB64 ) );
 	mem->BeingDebugged = 0;
 	mem->ImageBaseAddress = image_base;
@@ -42,7 +42,7 @@ void windows::setup_fake_peb ( kubera::KUBERA& ctx, uint64_t image_base ) {
 
 	auto* real_api_set_map = reinterpret_cast<API_SET_NAMESPACE*>(real_peb->ApiSetMap);
 	memcpy ( &api_set, real_api_set_map, sizeof ( API_SET_NAMESPACE ) );
-	uint64_t api_set_addr = vm->alloc ( sizeof ( API_SET_NAMESPACE ), kubera::VirtualMemory::READ | kubera::VirtualMemory::WRITE );
-	std::memcpy ( vm->translate ( api_set_addr, kubera::VirtualMemory::WRITE ), &api_set, sizeof ( api_set ) );
+	uint64_t api_set_addr = vm->alloc ( sizeof ( API_SET_NAMESPACE ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	std::memcpy ( vm->translate ( api_set_addr, kubera::PageProtection::WRITE ), &api_set, sizeof ( api_set ) );
 	mem->ApiSetMap = api_set_addr;
 }

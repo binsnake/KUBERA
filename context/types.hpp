@@ -155,4 +155,53 @@ namespace kubera
 			timestamp_counter += amount;
 		}
 	};
+
+	enum PageProtection : uint8_t {
+		NONE = 0,
+		READ = 1 << 0,
+		WRITE = 1 << 1,
+		EXEC = 1 << 2
+	};
+
+
+	struct Page {
+		uint8_t* data { nullptr };
+		uint8_t prot { PageProtection::NONE };
+		bool present { false };
+		uint64_t region_base { 0 };
+	};
+
+	struct Region {
+		uint64_t base_address { 0 };
+		std::size_t size { 0 };
+		uint8_t allocation_protect { PageProtection::NONE };
+		uint8_t current_protect { PageProtection::NONE };
+	};
+
+	struct WinMemoryBasicInformation {
+		uint64_t base_address { 0 };
+		uint64_t allocation_base { 0 };
+		uint32_t allocation_protect { 0 };
+		std::size_t region_size { 0 };
+		uint32_t protect { 0 };
+		uint32_t state { 0 };
+		uint32_t type { 0 };
+	};
+
+	struct WinMemoryImageInformation {
+		uint64_t ImageBase;
+		int64_t SizeOfImage;
+
+		union {
+			uint32_t ImageFlags;
+
+			struct {
+				uint32_t ImagePartialMap : 1;
+				uint32_t ImageNotExecutable : 1;
+				uint32_t ImageSigningLevel : 4;     // REDSTONE3
+				uint32_t ImageExtensionPresent : 1; // since 24H2
+				uint32_t Reserved : 25;
+			};
+		};
+	};
 };

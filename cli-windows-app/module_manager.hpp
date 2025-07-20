@@ -90,6 +90,24 @@ class ModuleManager {
 public:
 	explicit ModuleManager ( kubera::VirtualMemory* mem ) : vm ( mem ) { }
 
+	Module get_module_by_address ( uint64_t address ) const {
+		for ( const auto& mod : modules ) {
+			if ( address >= mod.base && address < ( mod.base + mod.size ) ) {
+				return mod;
+			}
+		}
+		return {};
+	}	
+	
+	std::string get_module_name_by_address ( uint64_t address ) const {
+		for ( const auto& mod : modules ) {
+			if ( address >= mod.base && address < ( mod.base + mod.size ) ) {
+				return mod.name;
+			}
+		}
+		return "";
+	}
+
 	uint64_t get_module_base_public ( const std::string& mod ) {
 		return get_module_base ( mod );
 	}
@@ -100,7 +118,7 @@ public:
 
 	uint64_t get_entry_point ( const std::string& mod ) {
 		auto vm_base = get_module_base ( mod );
-		auto mod_base = reinterpret_cast< win::image_x64_t* >( vm->translate ( vm_base, kubera::VirtualMemory::READ ) );
+		auto mod_base = reinterpret_cast< win::image_x64_t* >( vm->translate ( vm_base, kubera::PageProtection::READ ) );
 		return vm_base + mod_base->get_nt_headers ( )->optional_header.entry_point;
 	}
 
@@ -133,40 +151,43 @@ public:
 		file.read ( reinterpret_cast< char* >( buf.data ( ) ), file_size );
 
 		auto* image = reinterpret_cast< win::image_x64_t* >( buf.data ( ) );
-		if ( image->dos_header.e_magic != 'ZM' ) return 0;
+		if ( image->dos_header.e_magic != 'ZM' ) {
+			return 0;
+		}
 		auto* nt = image->get_nt_headers ( );
 
-		if ( nt->file_header.machine != win::machine_id::amd64 ) return 0;
-
+		if ( nt->file_header.machine != win::machine_id::amd64 ) {
+			return 0;
+		}
 		std::size_t image_size = nt->optional_header.size_image;
-		uint64_t base = vm->alloc ( image_size, VirtualMemory::READ | VirtualMemory::WRITE );
+		uint64_t base = vm->alloc ( image_size, PageProtection::READ | PageProtection::WRITE );
 		int64_t delta = static_cast< int64_t >( base - nt->optional_header.image_base );
 
-		resolve_relocations ( image, nt, delta );
+		resolve_relocations(image, nt, delta);
 
-		for ( const auto& sec : nt->sections ( ) ) {
+		vm->write_bytes(base, buf.data(), nt->optional_header.size_headers);
+		vm->protect(base, nt->optional_header.size_headers, PageProtection::READ);
+
+		for (const auto& sec : nt->sections()) {
 			uint64_t sec_va = base + sec.virtual_address;
-			std::size_t sec_size = sec.virtual_size;
-			uint8_t prot;
-			if ( sec.characteristics.mem_execute ) {
-				prot = sec.characteristics.mem_write ? ( VirtualMemory::READ | VirtualMemory::WRITE | VirtualMemory::EXEC ) : ( VirtualMemory::READ | VirtualMemory::EXEC );
+			std::size_t sec_virtual_size = sec.virtual_size ? sec.virtual_size : sec.size_raw_data;
+			std::size_t sec_raw_size = sec.size_raw_data;
+
+			if (sec_raw_size > 0) {
+				vm->write_bytes (sec_va, buf.data() + sec.ptr_raw_data, sec_raw_size);
 			}
-			else if ( sec.characteristics.mem_write ) {
-				prot = VirtualMemory::READ | VirtualMemory::WRITE;
+
+			uint8_t prot;
+			if (sec.characteristics.mem_execute) {
+				prot = sec.characteristics.mem_write ? ( PageProtection::READ | PageProtection::WRITE | PageProtection::EXEC) : ( PageProtection::READ | PageProtection::EXEC);
+			}
+			else if (sec.characteristics.mem_write) {
+				prot = PageProtection::READ | PageProtection::WRITE;
 			}
 			else {
-				prot = VirtualMemory::READ;
+				prot = PageProtection::READ;
 			}
-			const uint8_t* src = buf.data ( ) + sec.ptr_raw_data;
-			std::size_t raw_size = sec.size_raw_data;
-			for ( std::size_t off = 0; off < sec_size; off += vm->page_size ) {
-				char* dest = static_cast< char* > ( vm->translate ( sec_va + off, VirtualMemory::WRITE ) );
-				if ( !dest ) return 0;
-				std::size_t copy = std::min ( vm->page_size, raw_size > off ? raw_size - off : 0 );
-				if ( copy ) std::memcpy ( dest, src + off, copy );
-				if ( copy < vm->page_size ) std::memset ( dest + copy, 0, vm->page_size - copy );
-			}
-			vm->protect ( sec_va, sec_size, prot );
+			vm->protect(sec_va, sec_virtual_size, prot);
 		}
 
 		Module mod { path, base, image_size };

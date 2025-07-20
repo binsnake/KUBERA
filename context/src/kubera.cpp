@@ -9,7 +9,7 @@ KubRegister map_register ( Register reg ) {
 }
 
 void kubera::KUBERA::handle_ip_switch ( uint64_t target ) {
-	if ( !memory->check ( target, 1, VirtualMemory::EXEC ) ) {
+	if ( !memory->check ( target, 1, PageProtection::EXEC ) ) {
 		return;
 	}
 
@@ -58,9 +58,7 @@ uint64_t KUBERA::get_rflags ( ) const noexcept {
 
 uint64_t KUBERA::get_reg ( Register reg, size_t size ) const noexcept {
 	if ( reg == Register::RIP ) {
-		const auto current_instr_ip = decoder->last_successful_ip ( );
-		const auto current_instr_len = decoder->last_successful_length ( );
-		return current_instr_ip + current_instr_len;
+		return rip ( );
 	}
 
 	const auto full_reg = map_register ( reg );
@@ -634,7 +632,7 @@ void map_handlers ( ) {
 
 KUBERA::KUBERA ( ) {
 	memory = std::make_unique<VirtualMemory> ( );
-	const uint64_t stack_addr = memory->alloc ( 0x200000, VirtualMemory::READ | VirtualMemory::WRITE );
+	const uint64_t stack_addr = memory->alloc ( 0x200000, PageProtection::READ | PageProtection::WRITE );
 	cpu = std::make_unique<CPU> ( stack_addr, 0x200000 );
 	decoder = std::make_unique<iced::Decoder> ( );
 	instruction_dispatch_table = std::make_unique<InstructionHandlerList> ();

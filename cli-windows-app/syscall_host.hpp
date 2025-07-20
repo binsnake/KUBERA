@@ -26,7 +26,7 @@ template<size_t... indeces>
 auto generate_stk_arguments_helper ( kubera::KUBERA& ctx, std::index_sequence<indeces...> ) {
 	return std::make_tuple ( STK (
 		(uint64_t)ctx.get_virtual_memory ( )->translate ( 
-			ctx.get_reg ( Register::RSP, 8 ), kubera::VirtualMemory::READ | kubera::VirtualMemory::WRITE )
+			ctx.get_reg ( Register::RSP, 8 ), kubera::PageProtection::READ | kubera::PageProtection::WRITE )
 		+ 0x28 + sizeof ( uint64_t ) * indeces )... );
 }
 

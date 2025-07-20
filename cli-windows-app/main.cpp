@@ -7,7 +7,7 @@
 #include "wintypes.hpp"
 #include "syscalls.hpp"
 #include "module_manager.hpp"
-
+#include "process.hpp"
 #define NOMINMAX
 #include <Windows.h>
 using namespace kubera;
@@ -108,7 +108,7 @@ void setup_context ( KUBERA& ctx, uint64_t start_address ) {
 	winctx.Rdx = 0;
 
 	CONTEXT* winctx_stack = ctx.allocate_on_stack<CONTEXT> ( );
-	memcpy ( ctx.get_virtual_memory ( )->translate ( reinterpret_cast< uint64_t >( winctx_stack ), VirtualMemory::READ ), &winctx, sizeof ( CONTEXT ) );
+	memcpy ( ctx.get_virtual_memory ( )->translate ( reinterpret_cast< uint64_t >( winctx_stack ), PageProtection::READ ), &winctx, sizeof ( CONTEXT ) );
 	ctx.unalign_stack ( );
 
 	ctx.rip ( ) = windows::ldr_initialize_thunk;
@@ -117,9 +117,7 @@ void setup_context ( KUBERA& ctx, uint64_t start_address ) {
 }
 
 int main ( ) {
-	KUBERA ctx { };
-	ModuleManager mm { ctx.get_virtual_memory ( ) };
-
+	using namespace process;
 	windows::emu_module = reinterpret_cast< void* >( mm.load_module ( "D:\\binsnake\\kubera\\emu.exe" ) );
 	windows::ntdll = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\ntdll.dll" ) );
 	windows::win32u = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\win32u.dll" ) );
@@ -147,11 +145,11 @@ int main ( ) {
 
 	std::println ( "ntdll base: {:#x}", ( uint64_t ) windows::emu_module );
 	auto vm = ctx.get_virtual_memory ( );
-	std::println ( "ntdll base real: {:#x}", ( uint64_t ) vm->translate ( ( uint64_t ) windows::emu_module, VirtualMemory::READ ) );
+	std::println ( "ntdll base real: {:#x}", ( uint64_t ) vm->translate ( ( uint64_t ) windows::emu_module, PageProtection::READ ) );
 	while ( true ) {
-		auto real_instruction_rip = ( uint64_t ) vm->translate ( ctx.rip ( ), VirtualMemory::READ );
+		auto real_instruction_rip = ( uint64_t ) vm->translate ( ctx.rip ( ), PageProtection::READ );
 		auto& instr = ctx.emulate ( );
-		std::println ( "[{:#x} - {:#x}] {}", instr.ip, real_instruction_rip, instr.to_string ( ) );
+		//std::println ( "[{:#x} - {:#x}] {}", instr.ip, real_instruction_rip, instr.to_string ( ) );
 		if ( !instr.valid ( ) ) {
 			break;
 		}

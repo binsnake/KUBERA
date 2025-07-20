@@ -7,9 +7,13 @@ namespace helpers
 	using namespace kubera;
 	FORCE_INLINE uint64_t calculate_mem_addr ( const iced::Instruction& instr, KUBERA& state ) {
 		uint64_t address = 0;
-		if ( instr.mem_base ( ) != Register::None ) {
+		if ( instr.mem_base ( ) == Register::RIP ) {
+			address += instr.ip + instr.length ( );
+		}
+		else if ( instr.mem_base ( ) != Register::None ) {
 			address += state.get_reg ( instr.mem_base ( ), 8 );
 		}
+
 		if ( instr.mem_index ( ) != Register::None ) {
 			address += state.get_reg ( instr.mem_index ( ), 8 ) * instr.mem_scale ( );
 		}
