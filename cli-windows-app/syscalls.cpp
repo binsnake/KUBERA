@@ -8,12 +8,6 @@
 #include "wintypes.hpp"
 using namespace kubera;
 
-#define SYSCALL_REG_DUMP(ctx) \
-ctx.get_reg_internal<KubRegister::R10, Register::R10, uint64_t>(), \
-ctx.get_reg_internal<KubRegister::RDX, Register::RDX, uint64_t>(), \
-ctx.get_reg_internal<KubRegister::R8, Register::R8, uint64_t>(), \
-ctx.get_reg_internal<KubRegister::R9, Register::R9, uint64_t>()
-
 #define GET_RSP(ctx) ctx.get_reg_internal<KubRegister::RSP, Register::RSP, uint64_t> ( )
 #define TRANSLATE(ctx, x, y) (uint64_t)ctx.get_virtual_memory ( )->translate(x, y) 
 #define ARG1(ctx) ctx.get_reg_internal<kubera::KubRegister::R10, Register::R10, uint64_t> ( )
@@ -29,6 +23,14 @@ ctx.get_reg_internal<KubRegister::R9, Register::R9, uint64_t>()
 #define SET_ARG5(ctx, val) *(uint64_t*)(TRANSLATE (ctx, GET_RSP(ctx) + 0x28, PageProtection::READ | PageProtection::WRITE ) ) = val
 #define SET_ARG6(ctx, val) *(uint64_t*)(TRANSLATE (ctx, GET_RSP(ctx) + 0x30, PageProtection::READ | PageProtection::WRITE ) ) = val
 #define SET_RETURN(ctx, value) ctx.set_reg_internal<KubRegister::RAX, Register::RAX, uint64_t>( value )
+
+#define SYSCALL_REG_DUMP(ctx) \
+ARG1(ctx), \
+ARG2(ctx), \
+ARG3(ctx), \
+ARG4(ctx), \
+ARG5(ctx), \
+ARG6(ctx)
 
 constexpr uint64_t CURRENT_PROCESS = ~0ULL;
 constexpr uint32_t STATUS_SUCCESS = 0x0;
@@ -356,7 +358,7 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 	const auto handler_available = handler_map.contains ( syscall_id );
 	const auto has_name = handler_name_map.contains ( syscall_id );
 	if ( handler_available && handler_name_map.contains ( syscall_id ) ) {
-		std::println ( "[syscall - {}] {:#x} {:#x} {:#x} {:#x}", handler_name_map [ syscall_id ], SYSCALL_REG_DUMP ( ctx ) );
+		std::println ( "[syscall - {}] {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}", handler_name_map [ syscall_id ], SYSCALL_REG_DUMP ( ctx ) );
 	}
 
 	if ( handler_available ) {
@@ -365,10 +367,10 @@ void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kube
 	}
 	else {
 		if ( has_name ) {
-			std::println ( "[syscall - {}] No handler! {:#x} {:#x} {:#x} {:#x}", handler_name_map [ syscall_id ], SYSCALL_REG_DUMP ( ctx ) );
+			std::println ( "[syscall - {}] No handler! {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}", handler_name_map [ syscall_id ], SYSCALL_REG_DUMP ( ctx ) );
 		}
 		else {
-			std::println ( "[syscall - {:#x}] No handler! {:#x} {:#x} {:#x} {:#x}", syscall_id, SYSCALL_REG_DUMP ( ctx ) );
+			std::println ( "[syscall - {:#x}] No handler! {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}", syscall_id, SYSCALL_REG_DUMP ( ctx ) );
 		}
 		__debugbreak ( );
 	}
