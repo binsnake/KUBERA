@@ -33,8 +33,8 @@ void save_cpu_state ( KUBERA& ctx, CONTEXT& context ) {
 	}
 
 	if ( ( context.ContextFlags & CONTEXT_CONTROL ) == CONTEXT_CONTROL ) {
-		context.SegSs = ctx.get_reg_internal<KubRegister::SS, Register::SS, uint16_t> ( );
-		context.SegCs = ctx.get_reg_internal<KubRegister::CS, Register::CS, uint16_t> ( );
+		context.SegSs = windows::stack_segment;
+		context.SegCs = windows::code_segment;
 		context.Rip = ctx.get_reg ( Register::RIP );
 		context.Rsp = ctx.get_reg ( Register::RSP );
 		context.EFlags = static_cast< uint32_t >( ctx.get_rflags ( ) );
@@ -59,10 +59,10 @@ void save_cpu_state ( KUBERA& ctx, CONTEXT& context ) {
 	}
 
 	if ( ( context.ContextFlags & CONTEXT_SEGMENTS ) == CONTEXT_SEGMENTS ) {
-		context.SegDs = ctx.get_reg_internal<KubRegister::DS, Register::DS, uint16_t> ( );
-		context.SegEs = ctx.get_reg_internal<KubRegister::ES, Register::ES, uint16_t> ( );
-		context.SegFs = ctx.get_reg_internal<KubRegister::FS, Register::FS, uint16_t> ( );
-		context.SegGs = ctx.get_reg_internal<KubRegister::GS, Register::GS, uint16_t> ( );
+		context.SegDs = windows::data_segment;
+		context.SegEs = windows::extra_segment;
+		context.SegFs = windows::file_segment;
+		context.SegGs = windows::g_segment;
 	}
 
 	if ( ( context.ContextFlags & CONTEXT_FLOATING_POINT ) == CONTEXT_FLOATING_POINT ) {
@@ -85,12 +85,16 @@ void save_cpu_state ( KUBERA& ctx, CONTEXT& context ) {
 
 void setup_context ( KUBERA& ctx, uint64_t start_address ) {
 	syscall_handlers::init<true> ( );
-	ctx.set_reg_internal<KubRegister::CS, Register::CS> ( windows::code_segment );
-	ctx.set_reg_internal<KubRegister::DS, Register::DS> ( windows::data_segment );
-	ctx.set_reg_internal<KubRegister::ES, Register::ES> ( windows::e_segment );
-	ctx.set_reg_internal<KubRegister::FS, Register::FS> ( windows::file_segment );
-	ctx.set_reg_internal<KubRegister::SS, Register::SS> ( windows::segment_selector );
-	ctx.set_reg_internal<KubRegister::GS, Register::GS> ( windows::g_segment );
+	auto* vm = ctx.get_virtual_memory ( );
+	auto gs = vm->alloc_at ( 0x30000, 0x1000, PageProtection::READ | PageProtection::WRITE );
+
+	ctx.set_reg_internal<KubRegister::ES, Register::ES, uint64_t> ( 0 );
+	ctx.set_reg_internal<KubRegister::CS, Register::CS, uint64_t> ( 0 );
+	ctx.set_reg_internal<KubRegister::SS, Register::SS, uint64_t> ( 0 );
+	ctx.set_reg_internal<KubRegister::DS, Register::DS, uint64_t> ( 0 );
+	ctx.set_reg_internal<KubRegister::FS, Register::FS, uint64_t> ( 0 );
+	ctx.set_reg_internal<KubRegister::GS, Register::GS, uint64_t> ( windows::teb_address );
+
 	ctx.set_rflags ( windows::rflags.value );
 	ctx.get_mxcsr ( ) = windows::mxcsr;
 	auto& fpu = ctx.get_fpu ( );
@@ -118,9 +122,9 @@ void setup_context ( KUBERA& ctx, uint64_t start_address ) {
 
 int main ( ) {
 	using namespace process;
-	windows::emu_module = reinterpret_cast< void* >( mm.load_module ( "D:\\binsnake\\kubera\\emu.exe" ) );
-	windows::ntdll = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\ntdll.dll" ) );
-	windows::win32u = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\win32u.dll" ) );
+	windows::emu_module = reinterpret_cast< void* >( mm.load_module ( "D:\\binsnake\\kubera\\emu.exe", 0x00007FFF50000000 ) );
+	windows::ntdll = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\ntdll.dll", 0x00007FFFFF000000 ) );
+	//windows::win32u = reinterpret_cast< void* >( mm.load_module ( "C:\\Windows\\System32\\win32u.dll", 0x00007FFFFD000000 ) );
 
 	windows::ldr_initialize_thunk =
 		mm.get_export_address_public ( "C:\\Windows\\System32\\ntdll.dll", "LdrInitializeThunk" );
@@ -136,6 +140,7 @@ int main ( ) {
 
 	syscall_handlers::build_syscall_map ( ctx, mm );
 	windows::setup_fake_peb ( ctx, reinterpret_cast< uint64_t >( windows::ntdll ) );
+	windows::setup_fake_teb ( ctx );
 	windows::setup_user_shared_data ( ctx );
 
 	char buf [ 128 ] { 0 };
@@ -147,10 +152,27 @@ int main ( ) {
 	std::println ( "ntdll base: {:#x}", ( uint64_t ) windows::emu_module );
 	auto vm = ctx.get_virtual_memory ( );
 	std::println ( "ntdll base real: {:#x}", ( uint64_t ) vm->translate ( ( uint64_t ) windows::emu_module, PageProtection::READ ) );
+
+	auto print_changes = [ ] ( const std::vector<std::string>& changes )
+	{
+		if ( changes.empty ( ) ) {
+			return;
+		}
+		for ( const auto& change : changes ) {
+			std::print ( "{} ", change );
+		}
+		std::println ( "" );
+	};
 	while ( true ) {
 		auto real_instruction_rip = ( uint64_t ) vm->translate ( ctx.rip ( ), PageProtection::READ );
+		auto old_regs = ctx.register_dump ( );
+		auto old_flags = ctx.rflags_dump ( );
+		auto old_mxcsr = ctx.mxcsr_dump ( );
 		auto& instr = ctx.emulate ( );
-		//std::println ( "[{:#x} - {:#x}] {}", instr.ip, real_instruction_rip, instr.to_string ( ) );
+		std::println ( "[{:#x} - {:#x}] {}", instr.ip, real_instruction_rip, instr.to_string ( ) );
+		print_changes ( ctx.get_register_changes ( old_regs ) );
+		print_changes ( ctx.get_rflags_changes ( old_flags ) );
+		print_changes ( ctx.get_mxcsr_changes ( old_mxcsr ) );
 		if ( !instr.valid ( ) ) {
 			break;
 		}

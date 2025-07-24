@@ -64,15 +64,12 @@ namespace kubera
 		CR4, // CPU features/extensions
 		CR8, // CPU priority, interrupts
 
-		// Segment registers
-		CS,
-		DS,
-		ES,
-		FS,
-		GS,
-		SS,
-
-		GDTR,
+		ES, // Extra Segment
+		CS, // Code Segment
+		SS, // Stack Segment
+		DS, // Data Segment
+		FS, // FS Segment
+		GS, // GS Segment
 
 		COUNT // Total count for array sizing
 	};

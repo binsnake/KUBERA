@@ -20,12 +20,6 @@ void movs_handler ( const iced::Instruction& instr, KUBERA& context, uint8_t ele
 		const uint64_t src_addr = rsi + i * step;
 		const uint64_t dst_addr = rdi + i * step;
 
-		if ( !context.is_within_stack_bounds ( src_addr, elem_size ) ||
-				!context.is_within_stack_bounds ( dst_addr, elem_size ) ) {
-			// !TODO(exception)
-			return;
-		}
-
 		if ( elem_size == 1 ) {
 			const uint8_t val = context.get_memory<uint8_t> ( src_addr );
 			context.set_memory<uint8_t> ( dst_addr, val );
@@ -108,11 +102,6 @@ void handlers::stos ( const iced::Instruction& instr, KUBERA& context ) {
 
 	for ( uint64_t i = 0; i < count; ++i ) {
 		const uint64_t dst_addr = rdi + i * step;
-
-		if ( !context.is_within_stack_bounds ( dst_addr, elem_size ) ) {
-			// !TODO(exception)
-			return;
-		}
 
 		if ( elem_size == 1 ) {
 			context.set_memory<uint8_t> ( dst_addr, static_cast< uint8_t > ( value ) );

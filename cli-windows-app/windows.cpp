@@ -13,9 +13,127 @@ inline windows::TEB64* NtCurrentTeb64 ( ) {
 	return reinterpret_cast< windows::TEB64* >( __readgsqword ( offsetof ( windows::_NT_TIB64, Self ) ) );
 }
 
+windows::_RTL_USER_PROCESS_PARAMETERS* NtCurrentProcessParameters ( ) {
+	auto* peb = NtCurrentPeb ( );
+	return reinterpret_cast< windows::_RTL_USER_PROCESS_PARAMETERS* >( peb->ProcessParameters );
+}
+
+void setup_process_parameters ( kubera::KUBERA& ctx, windows::_RTL_USER_PROCESS_PARAMETERS* mem ) {
+	using namespace windows;
+	auto* vm = ctx.get_virtual_memory ( );
+	std::memset ( mem, 0, sizeof ( _RTL_USER_PROCESS_PARAMETERS ) );
+	auto* real_params = NtCurrentProcessParameters ( );
+
+	// Initialize core fields
+	mem->MaximumLength = sizeof ( _RTL_USER_PROCESS_PARAMETERS );
+	mem->Length = sizeof ( _RTL_USER_PROCESS_PARAMETERS );
+	mem->Flags = 0x00000001; // Normalized (indicates parameters are normalized)
+	mem->DebugFlags = 0;
+
+	// Initialize CurrentDirectory
+	wchar_t current_directory [ 256 ] { 0 };
+	GetCurrentDirectoryW ( 256, current_directory ); // Example current directory
+	size_t dir_len = wcslen ( current_directory ) * sizeof ( wchar_t );
+	uint64_t dir_buffer_addr = vm->alloc ( dir_len + sizeof ( wchar_t ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	std::memcpy ( vm->translate ( dir_buffer_addr, kubera::PageProtection::WRITE ), current_directory, dir_len + sizeof ( wchar_t ) );
+	mem->CurrentDirectory.DosPath.Length = static_cast< USHORT >( dir_len );
+	mem->CurrentDirectory.DosPath.MaximumLength = static_cast< USHORT >( dir_len + sizeof ( wchar_t ) );
+	mem->CurrentDirectory.DosPath.Buffer = reinterpret_cast< char16_t* >( dir_buffer_addr );
+	mem->CurrentDirectory.Handle = nullptr;
+
+	// Initialize ImagePathName
+	std::wstring current_dir = current_directory;
+	auto image_path = ( current_dir + L"\\bomboclad.exe" ).c_str ( );
+	size_t image_path_len = wcslen ( image_path ) * sizeof ( wchar_t );
+	uint64_t image_path_buffer_addr = vm->alloc ( image_path_len + sizeof ( wchar_t ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	std::memcpy ( vm->translate ( image_path_buffer_addr, kubera::PageProtection::WRITE ), image_path, image_path_len + sizeof ( wchar_t ) );
+	mem->ImagePathName.Length = static_cast< USHORT >( image_path_len );
+	mem->ImagePathName.MaximumLength = static_cast< USHORT >( image_path_len + sizeof ( wchar_t ) );
+	mem->ImagePathName.Buffer = reinterpret_cast< char16_t* >( image_path_buffer_addr );
+
+	// Initialize CommandLine
+	wchar_t command_line [ ] = L"bomboclad.exe";
+	size_t cmd_len = sizeof ( command_line );
+	uint64_t cmd_buffer_addr = vm->alloc ( cmd_len + sizeof ( wchar_t ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	std::memcpy ( vm->translate ( cmd_buffer_addr, kubera::PageProtection::WRITE ), command_line, cmd_len + sizeof ( wchar_t ) );
+	mem->CommandLine.Length = static_cast< USHORT >( cmd_len );
+	mem->CommandLine.MaximumLength = static_cast< USHORT >( cmd_len + sizeof ( wchar_t ) );
+	mem->CommandLine.Buffer = reinterpret_cast< char16_t* >( cmd_buffer_addr );
+
+	// Initialize DllPath (copy from real parameters)
+	if ( real_params->DllPath.Buffer ) {
+		size_t dll_path_len = real_params->DllPath.Length;
+		uint64_t dll_path_buffer_addr = vm->alloc ( dll_path_len + sizeof ( wchar_t ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+		std::memcpy ( vm->translate ( dll_path_buffer_addr, kubera::PageProtection::WRITE ), real_params->DllPath.Buffer, dll_path_len + sizeof ( wchar_t ) );
+		mem->DllPath.Length = real_params->DllPath.Length;
+		mem->DllPath.MaximumLength = real_params->DllPath.MaximumLength;
+		mem->DllPath.Buffer = reinterpret_cast< char16_t* >( dll_path_buffer_addr );
+	}
+
+	// Initialize Environment (copy from real parameters)
+	if ( real_params->Environment ) {
+		mem->EnvironmentSize = real_params->EnvironmentSize;
+		uint64_t env_buffer_addr = vm->alloc ( mem->EnvironmentSize, kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+		if ( mem->EnvironmentSize ) {
+			std::memcpy ( vm->translate ( env_buffer_addr, kubera::PageProtection::WRITE ), real_params->Environment, mem->EnvironmentSize );
+		}
+		mem->Environment = reinterpret_cast< void* >( env_buffer_addr );
+		mem->EnvironmentVersion = real_params->EnvironmentVersion;
+	}
+
+	// Initialize console and window settings
+	mem->ConsoleHandle = nullptr;
+	mem->ConsoleFlags = 0;
+	mem->StandardInput = nullptr;
+	mem->StandardOutput = nullptr;
+	mem->StandardError = nullptr;
+	mem->StartingX = 0;
+	mem->StartingY = 0;
+	mem->CountX = 80; // Default console width
+	mem->CountY = 25; // Default console height
+	mem->CountCharsX = 80;
+	mem->CountCharsY = 25;
+	mem->FillAttribute = 0x07; // Default text attribute (white on black)
+	mem->WindowFlags = 0;
+	mem->ShowWindowFlags = 1; // SW_SHOWNORMAL
+
+	// Initialize WindowTitle
+	const wchar_t* window_title = L"BOMBOCLAAAAD";
+	size_t title_len = wcslen ( window_title ) * sizeof ( wchar_t );
+	uint64_t title_buffer_addr = vm->alloc ( title_len + sizeof ( wchar_t ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	std::memcpy ( vm->translate ( title_buffer_addr, kubera::PageProtection::WRITE ), window_title, title_len + sizeof ( wchar_t ) );
+	mem->WindowTitle.Length = static_cast< USHORT >( title_len );
+	mem->WindowTitle.MaximumLength = static_cast< USHORT >( title_len + sizeof ( wchar_t ) );
+	mem->WindowTitle.Buffer = reinterpret_cast< char16_t* >( title_buffer_addr );
+
+	// Initialize DesktopInfo and ShellInfo
+	const wchar_t* desktop_info = L"WinSta0\\Default";
+	size_t desktop_len = wcslen ( desktop_info ) * sizeof ( wchar_t );
+	uint64_t desktop_buffer_addr = vm->alloc ( desktop_len + sizeof ( wchar_t ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	std::memcpy ( vm->translate ( desktop_buffer_addr, kubera::PageProtection::WRITE ), desktop_info, desktop_len + sizeof ( wchar_t ) );
+	mem->DesktopInfo.Length = static_cast< USHORT >( desktop_len );
+	mem->DesktopInfo.MaximumLength = static_cast< USHORT >( desktop_len + sizeof ( wchar_t ) );
+	mem->DesktopInfo.Buffer = reinterpret_cast< char16_t* >( desktop_buffer_addr );
+
+	const wchar_t* shell_info = L"";
+	size_t shell_len = wcslen ( shell_info ) * sizeof ( wchar_t );
+	uint64_t shell_buffer_addr = vm->alloc ( shell_len + sizeof ( wchar_t ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	std::memcpy ( vm->translate ( shell_buffer_addr, kubera::PageProtection::WRITE ), shell_info, shell_len + sizeof ( wchar_t ) );
+	mem->ShellInfo.Length = static_cast< USHORT >( shell_len );
+	mem->ShellInfo.MaximumLength = static_cast< USHORT >( shell_len + sizeof ( wchar_t ) );
+	mem->ShellInfo.Buffer = reinterpret_cast< char16_t* >( shell_buffer_addr );
+
+	// Initialize remaining fields
+	mem->ProcessGroupId = real_params->ProcessGroupId;
+	mem->LoaderThreads = 1; // Single loader thread
+	mem->DefaultThreadpoolCpuSetMaskCount = 0;
+	mem->DefaultThreadpoolThreadMaximum = 0;
+	mem->HeapMemoryTypeMask = 0;
+}
+
 void windows::setup_fake_peb ( kubera::KUBERA& ctx, uint64_t image_base ) {
 	auto* vm = ctx.get_virtual_memory ( );
-	peb_address = vm->alloc ( sizeof ( PEB64 ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	peb_address = vm->alloc_at ( 0xE00000, sizeof ( PEB64 ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
 	auto* mem = static_cast< PEB64* >( vm->translate ( peb_address, kubera::PageProtection::WRITE ) );
 	std::memset ( mem, 0, sizeof ( PEB64 ) );
 	mem->BeingDebugged = 0;
@@ -29,7 +147,11 @@ void windows::setup_fake_peb ( kubera::KUBERA& ctx, uint64_t image_base ) {
 	mem->OSPlatformId = 2;
 	mem->OSMajorVersion = 0xA;
 	mem->OSBuildNumber = 0x6c51;
-
+	auto process_params = vm->alloc ( sizeof ( windows::_RTL_USER_PROCESS_PARAMETERS ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	setup_process_parameters ( ctx, reinterpret_cast< windows::_RTL_USER_PROCESS_PARAMETERS* >( vm->translate ( process_params, kubera::PageProtection::WRITE ) ) );
+	mem->ProcessParameters = reinterpret_cast< windows::_RTL_USER_PROCESS_PARAMETERS* >( process_params );
+	auto ldr = vm->alloc ( sizeof ( windows::_PEB_LDR_DATA ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	mem->Ldr = reinterpret_cast< windows::_PEB_LDR_DATA* >( ldr );
 	auto* real_peb = NtCurrentPeb ( );
 
 	struct API_SET_NAMESPACE {
@@ -47,6 +169,48 @@ void windows::setup_fake_peb ( kubera::KUBERA& ctx, uint64_t image_base ) {
 	uint64_t api_set_addr = vm->alloc ( sizeof ( API_SET_NAMESPACE ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
 	std::memcpy ( vm->translate ( api_set_addr, kubera::PageProtection::WRITE ), &api_set, sizeof ( api_set ) );
 	mem->ApiSetMap = api_set_addr;
+}
+
+void windows::setup_fake_teb ( kubera::KUBERA& ctx ) {
+	auto* vm = ctx.get_virtual_memory ( );
+	teb_address = vm->alloc_at ( 0xC00000, sizeof ( TEB64 ), kubera::PageProtection::READ | kubera::PageProtection::WRITE );
+	auto* mem = static_cast< TEB64* >( vm->translate ( teb_address, kubera::PageProtection::WRITE ) );
+	std::memset ( mem, 0, sizeof ( TEB64 ) );
+	auto* real_teb = NtCurrentTeb64 ( );
+	mem->NtTib.Self = teb_address; // TEB points to itself
+	mem->NtTib.StackBase = ctx.stack_base ( ); // Provided stack base
+	mem->NtTib.StackLimit = ctx.stack_limit ( ); // Provided stack limit
+	mem->ProcessEnvironmentBlock = peb_address; // Link to the fake PEB
+	mem->ClientId.UniqueThread = real_teb->ClientId.UniqueThread; // Copy real thread ID
+	mem->ClientId.UniqueProcess = real_teb->ClientId.UniqueProcess; // Copy real process ID
+	mem->RealClientId = mem->ClientId; // RealClientId mirrors ClientId
+	mem->LastErrorValue = 0; // Initialize last error to 0
+	mem->CurrentLocale = 0x409; // US English locale (0x409)
+	mem->InitialThread = 1; // Mark as initial thread
+	mem->SessionAware = 1; // Enable session awareness
+
+	// Initialize StaticUnicodeString
+	mem->StaticUnicodeString.Length = 0;
+	mem->StaticUnicodeString.MaximumLength = sizeof ( mem->StaticUnicodeBuffer );
+	mem->StaticUnicodeString.Buffer = teb_address + offsetof ( TEB64, StaticUnicodeBuffer );
+
+	// Initialize ActivationContextStack
+	mem->_ActivationStack.Flags = 0;
+	mem->ActivationContextStackPointer = 0;
+
+	// Initialize Group Affinity (default to all CPUs in group 0)
+	mem->PrimaryGroupAffinity.Mask = 0xFFFFFFFFFFFFFFFFULL;
+	mem->PrimaryGroupAffinity.Group = 0;
+
+	// Initialize GUID for ActivityId (generate a simple mock GUID)
+	mem->ActivityId.Data1 = 0x12345678;
+	mem->ActivityId.Data2 = 0x1234;
+	mem->ActivityId.Data3 = 0x5678;
+	std::memcpy ( mem->ActivityId.Data4, "\x01\x02\x03\x04\x05\x06\x07\x08", 8 );
+
+	// Initialize TLS Links (empty list)
+	mem->TlsLinks.Flink = teb_address + offsetof ( TEB64, TlsLinks );
+	mem->TlsLinks.Blink = teb_address + offsetof ( TEB64, TlsLinks );
 }
 
 constexpr auto HUNDRED_NANOSECONDS_IN_ONE_SECOND = 10000000LL;

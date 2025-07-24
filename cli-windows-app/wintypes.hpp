@@ -7,17 +7,19 @@ namespace windows
 {
 	constexpr uint16_t code_segment = 0x33;
 	constexpr uint16_t data_segment = 0x2B;
-	constexpr uint16_t e_segment = 0x2B;
+	constexpr uint16_t extra_segment = 0x2B;
 	constexpr uint16_t g_segment = 0x2B;
 	constexpr uint16_t file_segment = 0x53;
-	constexpr uint16_t segment_selector = 0x2B;
+	constexpr uint16_t stack_segment = 0x2B;
 	constexpr x86::Flags rflags { .value = 0x0000000000000300 };
 	constexpr x86::Mxcsr mxcsr { .value = 0x00001F80 };
 	constexpr x86::FPUControlWord fpu_control_word { .value = 0x027F };
 	constexpr x86::FPUStatusWord fpu_status_word = { .value = 0x0 };
 
 	inline uint64_t peb_address = 0;
+	inline uint64_t teb_address = 0;
 	void setup_fake_peb ( kubera::KUBERA& ctx, uint64_t image_base );
+	void setup_fake_teb ( kubera::KUBERA& ctx );
 	void setup_user_shared_data ( kubera::KUBERA& ctx );
 
 	inline uint64_t ldr_initialize_thunk = 0ULL;
@@ -80,6 +82,116 @@ namespace windows
 		ULONGLONG UniqueProcess;                                                //0x0
 		ULONGLONG UniqueThread;                                                 //0x8
 	};
+
+	typedef struct _PROCESSOR_NUMBER {
+		WORD   Group;
+		BYTE  Number;
+		BYTE  Reserved;
+	} PROCESSOR_NUMBER, * PPROCESSOR_NUMBER;
+
+	struct _GUID {
+		ULONG Data1;                                                            //0x0
+		USHORT Data2;                                                           //0x4
+		USHORT Data3;                                                           //0x6
+		UCHAR Data4 [ 8 ];                                                         //0x8
+	};
+
+	struct _GROUP_AFFINITY64 {
+		ULONGLONG Mask;                                                         //0x0
+		USHORT Group;                                                           //0x8
+		USHORT Reserved [ 3 ];                                                     //0xa
+	};
+
+	struct _UNICODE_STRING {
+		USHORT Length;                                                          //0x0
+		USHORT MaximumLength;                                                   //0x2
+		char16_t* Buffer;                                                          //0x8
+	};
+
+	struct _OBJECT_ATTRIBUTES {
+		ULONG Length;                                                           //0x0
+		void* RootDirectory;                                                    //0x8
+		_UNICODE_STRING* ObjectName;                                     //0x10
+		ULONG Attributes;                                                       //0x18
+		void* SecurityDescriptor;                                               //0x20
+		void* SecurityQualityOfService;                                         //0x28
+	};
+
+	struct _CURDIR {
+		_UNICODE_STRING DosPath;                                         //0x0
+		void* Handle;                                                           //0x10
+	};
+	struct _STRING {
+		USHORT Length;                                                          //0x0
+		USHORT MaximumLength;                                                   //0x2
+		CHAR* Buffer;                                                           //0x8
+	};
+	struct _RTL_DRIVE_LETTER_CURDIR {
+		USHORT Flags;                                                           //0x0
+		USHORT Length;                                                          //0x2
+		ULONG TimeStamp;                                                        //0x4
+		_STRING DosPath;                                                 //0x8
+	};
+
+	struct _LIST_ENTRY {
+		ULONGLONG Flink;                                                        //0x0
+		ULONGLONG Blink;                                                        //0x8
+	};
+
+	struct _PEB_LDR_DATA {
+		ULONG Length;                                                           //0x0
+		UCHAR Initialized;                                                      //0x4
+		void* SsHandle;                                                         //0x8
+		_LIST_ENTRY InLoadOrderModuleList;                               //0x10
+		_LIST_ENTRY InMemoryOrderModuleList;                             //0x20
+		_LIST_ENTRY InInitializationOrderModuleList;                     //0x30
+		void* EntryInProgress;                                                  //0x40
+		UCHAR ShutdownInProgress;                                               //0x48
+		void* ShutdownThreadId;                                                 //0x50
+	};
+
+	struct _RTL_USER_PROCESS_PARAMETERS {
+		ULONG MaximumLength;                                                    //0x0
+		ULONG Length;                                                           //0x4
+		ULONG Flags;                                                            //0x8
+		ULONG DebugFlags;                                                       //0xc
+		void* ConsoleHandle;                                                    //0x10
+		ULONG ConsoleFlags;                                                     //0x18
+		void* StandardInput;                                                    //0x20
+		void* StandardOutput;                                                   //0x28
+		void* StandardError;                                                    //0x30
+		_CURDIR CurrentDirectory;                                        //0x38
+		_UNICODE_STRING DllPath;                                         //0x50
+		_UNICODE_STRING ImagePathName;                                   //0x60
+		_UNICODE_STRING CommandLine;                                     //0x70
+		void* Environment;                                                      //0x80
+		ULONG StartingX;                                                        //0x88
+		ULONG StartingY;                                                        //0x8c
+		ULONG CountX;                                                           //0x90
+		ULONG CountY;                                                           //0x94
+		ULONG CountCharsX;                                                      //0x98
+		ULONG CountCharsY;                                                      //0x9c
+		ULONG FillAttribute;                                                    //0xa0
+		ULONG WindowFlags;                                                      //0xa4
+		ULONG ShowWindowFlags;                                                  //0xa8
+		_UNICODE_STRING WindowTitle;                                     //0xb0
+		_UNICODE_STRING DesktopInfo;                                     //0xc0
+		_UNICODE_STRING ShellInfo;                                       //0xd0
+		_UNICODE_STRING RuntimeData;                                     //0xe0
+		_RTL_DRIVE_LETTER_CURDIR CurrentDirectores [ 32 ];                  //0xf0
+		ULONGLONG EnvironmentSize;                                              //0x3f0
+		ULONGLONG EnvironmentVersion;                                           //0x3f8
+		void* PackageDependencyData;                                            //0x400
+		ULONG ProcessGroupId;                                                   //0x408
+		ULONG LoaderThreads;                                                    //0x40c
+		_UNICODE_STRING RedirectionDllName;                              //0x410
+		_UNICODE_STRING HeapPartitionName;                               //0x420
+		ULONGLONG* DefaultThreadpoolCpuSetMasks;                                //0x430
+		ULONG DefaultThreadpoolCpuSetMaskCount;                                 //0x438
+		ULONG DefaultThreadpoolThreadMaximum;                                   //0x43c
+		ULONG HeapMemoryTypeMask;                                               //0x440
+	};
+
 	struct PEB64 {
 		uint8_t  InheritedAddressSpace;
 		uint8_t  ReadImageFileExecOptions;
@@ -88,8 +200,8 @@ namespace windows
 		uint8_t  Padding0 [ 4 ];
 		uint64_t Mutant;
 		uint64_t ImageBaseAddress;
-		uint64_t Ldr;
-		uint64_t ProcessParameters;
+		_PEB_LDR_DATA* Ldr;
+		_RTL_USER_PROCESS_PARAMETERS* ProcessParameters;
 		uint64_t SubSystemData;
 		uint64_t ProcessHeap;
 		uint64_t FastPebLock;
@@ -210,40 +322,6 @@ namespace windows
 		ULONG HasRenderingCommand : 1;                                            //0x0
 		ULONGLONG HDC;                                                          //0x8
 		ULONG Buffer [ 310 ];                                                      //0x10
-	};
-
-	typedef struct _PROCESSOR_NUMBER {
-		WORD   Group;
-		BYTE  Number;
-		BYTE  Reserved;
-	} PROCESSOR_NUMBER, * PPROCESSOR_NUMBER;
-
-	struct _GUID {
-		ULONG Data1;                                                            //0x0
-		USHORT Data2;                                                           //0x4
-		USHORT Data3;                                                           //0x6
-		UCHAR Data4 [ 8 ];                                                         //0x8
-	};
-
-	struct _GROUP_AFFINITY64 {
-		ULONGLONG Mask;                                                         //0x0
-		USHORT Group;                                                           //0x8
-		USHORT Reserved [ 3 ];                                                     //0xa
-	};
-
-	struct _UNICODE_STRING {
-		USHORT Length;                                                          //0x0
-		USHORT MaximumLength;                                                   //0x2
-		char16_t* Buffer;                                                          //0x8
-	};
-
-	struct _OBJECT_ATTRIBUTES {
-		ULONG Length;                                                           //0x0
-		void* RootDirectory;                                                    //0x8
-		_UNICODE_STRING* ObjectName;                                     //0x10
-		ULONG Attributes;                                                       //0x18
-		void* SecurityDescriptor;                                               //0x20
-		void* SecurityQualityOfService;                                         //0x28
 	};
 
 	struct TEB64 {

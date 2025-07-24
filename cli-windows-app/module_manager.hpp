@@ -133,7 +133,7 @@ public:
 		return nullptr;
 	}
 
-	uint64_t load_module ( const std::string& path ) {
+	uint64_t load_module ( const std::string& path, uint64_t preferred_base = 0 ) {
 		std::println ( "[mm] Mapping {}", path );
 		using namespace kubera;
 		uint64_t existing = get_module_base ( path );
@@ -160,7 +160,13 @@ public:
 			return 0;
 		}
 		std::size_t image_size = nt->optional_header.size_image;
-		uint64_t base = vm->alloc ( image_size, PageProtection::READ | PageProtection::WRITE );
+		uint64_t base = 0;
+		if ( preferred_base ) {
+			base = vm->alloc_at ( preferred_base, image_size, PageProtection::READ | PageProtection::WRITE );
+		}
+		else {
+			base = vm->alloc ( image_size, PageProtection::READ | PageProtection::WRITE );
+		}
 		int64_t delta = static_cast< int64_t >( base - nt->optional_header.image_base );
 
 		resolve_relocations(image, nt, delta);

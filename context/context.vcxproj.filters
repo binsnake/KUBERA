@@ -101,5 +101,11 @@
     <ClCompile Include="src\handlers\floating_80.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\virtual_memory.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="memset.txt" />
   </ItemGroup>
 </Project>

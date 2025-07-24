@@ -17,13 +17,8 @@ void handlers::mov ( const iced::Instruction& instr, KUBERA& context ) {
 	}
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
-		if ( context.is_within_stack_bounds ( addr, op_size ) ) {
-			context.set_stack<uint64_t> ( addr, value );
-		}
-		else {
-			context.set_memory<uint64_t> ( addr, value );
-		}
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
+		context.set_memory<uint64_t> ( addr, value );
 		return;
 	}
 
@@ -56,7 +51,7 @@ void handlers::movaps ( const iced::Instruction& instr, KUBERA& context ) {
 	}
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Register && instr.op1_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 1u, context );
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 		if ( addr % 16 != 0 ) {
 			// !TODO(exception)
 			return;
@@ -67,18 +62,13 @@ void handlers::movaps ( const iced::Instruction& instr, KUBERA& context ) {
 	}
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory && instr.op1_kind ( ) == OpKindSimple::Register ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 		if ( addr % 16 != 0 ) {
 			// !TODO(exception)
 			return;
 		}
 		const uint128_t src_val = context.get_xmm_raw ( instr.op1_reg ( )  );
-		if ( context.is_within_stack_bounds ( addr, 16 ) ) {
-			context.set_stack<uint128_t> ( addr, src_val );
-		}
-		else {
-			context.set_memory<uint128_t> ( addr, src_val );
-		}
+		context.set_memory<uint128_t> ( addr, src_val );
 		return;
 	}
 
@@ -135,12 +125,12 @@ void handlers::movd ( const iced::Instruction& instr, KUBERA& context ) {
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Register && instr.op1_kind ( ) == OpKindSimple::Memory ) {
 		if ( instr.op0_reg ( ) >= Register::XMM0 && instr.op0_reg ( ) <= Register::XMM31 ) {
-			const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 1u, context );
+			const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 			if ( addr % 4 != 0 ) {
 				// !TODO(exception)
 				return;
 			}
-			const uint64_t src_val = helpers::get_operand_value<uint32_t> ( instr, 1u, context );
+			const uint64_t src_val = context.get_memory<uint32_t> ( addr );
 			const uint128_t xmm_val = static_cast< uint128_t >( src_val );
 			context.set_xmm_raw ( instr.op0_reg ( ), xmm_val );
 			return;
@@ -149,19 +139,14 @@ void handlers::movd ( const iced::Instruction& instr, KUBERA& context ) {
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory && instr.op1_kind ( ) == OpKindSimple::Register ) {
 		if ( instr.op1_reg ( ) >= Register::XMM0 && instr.op1_reg ( ) <= Register::XMM31 ) {
-			const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+			const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 			if ( addr % 4 != 0 ) {
 				// !TODO(exception)
 				return;
 			}
 			const uint128_t src_val = context.get_xmm_raw ( instr.op1_reg ( ) );
 			const uint32_t val = static_cast< uint32_t >( src_val & 0xFFFFFFFF );
-			if ( context.is_within_stack_bounds ( addr, 4 ) ) {
-				context.set_stack<uint32_t> ( addr, val );
-			}
-			else {
-				context.set_memory<uint32_t> ( addr, val );
-			}
+			context.set_memory<uint32_t> ( addr, val );
 			return;
 		}
 	}
@@ -236,25 +221,15 @@ void handlers::xchg ( const iced::Instruction& instr, KUBERA& context ) {
 	}
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory && instr.op1_kind ( ) == OpKindSimple::Register ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
-		if ( context.is_within_stack_bounds ( addr, op_size ) ) {
-			context.set_stack<uint64_t> ( addr, masked_val2 );
-		}
-		else {
-			context.set_memory<uint64_t> ( addr, masked_val2 );
-		}
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
+		context.set_memory<uint64_t> ( addr, masked_val2 );
 		helpers::set_operand_value<uint64_t> ( instr, 1u, masked_val1, context );
 		return;
 	}
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Register && instr.op1_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 1u, context );
-		if ( context.is_within_stack_bounds ( addr, op_size ) ) {
-			context.set_stack<uint64_t> ( addr, masked_val1 );
-		}
-		else {
-			context.set_memory<uint64_t> ( addr, masked_val1 );
-		}
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
+		context.set_memory<uint64_t> ( addr, masked_val1 );
 		helpers::set_operand_value<uint64_t> ( instr, 0u, masked_val2, context );
 		return;
 	}
@@ -272,21 +247,16 @@ void handlers::movups ( const iced::Instruction& instr, KUBERA& context ) {
 	}
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Register && instr.op1_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 1u, context );
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 		const uint128_t src_val = context.get_memory<uint128_t> ( addr );
 		context.set_xmm_raw ( instr.op0_reg ( ), src_val );
 		return;
 	}
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory && instr.op1_kind ( ) == OpKindSimple::Register ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 		const uint128_t src_val = context.get_xmm_raw ( instr.op1_reg ( ) );
-		if ( context.is_within_stack_bounds ( addr, 16 ) ) {
-			context.set_stack<uint128_t> ( addr, src_val );
-		}
-		else {
-			context.set_memory<uint128_t> ( addr, src_val );
-		}
+		context.set_memory<uint128_t> ( addr, src_val );
 		return;
 	}
 
@@ -329,7 +299,7 @@ void handlers::movq ( const iced::Instruction& instr, KUBERA& context ) {
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Register && instr.op1_kind ( ) == OpKindSimple::Memory ) {
 		if ( instr.op0_reg ( ) >= Register::XMM0 && instr.op0_reg ( ) <= Register::XMM31 ) {
-			const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 1u, context );
+			const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 			const uint64_t src_val = context.get_memory<uint64_t> ( addr );
 			const uint128_t dst_val = static_cast< uint128_t >( src_val );
 			context.set_xmm_raw ( instr.op0_reg ( ), dst_val );
@@ -339,15 +309,10 @@ void handlers::movq ( const iced::Instruction& instr, KUBERA& context ) {
 
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory && instr.op1_kind ( ) == OpKindSimple::Register ) {
 		if ( instr.op1_reg ( ) >= Register::XMM0 && instr.op1_reg ( ) <= Register::XMM31 ) {
-			const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+			const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 			const uint128_t src_val = context.get_xmm_raw ( instr.op1_reg ( ) );
 			const uint64_t lo64 = static_cast< uint64_t >( src_val & 0xFFFFFFFFFFFFFFFF );
-			if ( context.is_within_stack_bounds ( addr, 8 ) ) {
-				context.set_stack<uint64_t> ( addr, lo64 );
-			}
-			else {
-				context.set_memory<uint64_t> ( addr, lo64 );
-			}
+			context.set_memory<uint64_t> ( addr, lo64 );
 			return;
 		}
 	}

@@ -135,14 +135,14 @@ void handlers::vmovaps ( const iced::Instruction& instr, KUBERA& context ) {
 	}
 
 	if ( instr.op1_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 1u, context );
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 		if ( addr % op_size != 0 ) {
 			// !TODO(exception)
 			return;
 		}
 	}
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
 		if ( addr % op_size != 0 ) {
 			// !TODO(exception)
 			return;
@@ -216,7 +216,7 @@ void handlers::movlhps ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint128_t src_val = context.get_xmm_raw ( instr.op1_reg ( ) );
 	const uint64_t dst_low = static_cast< uint64_t >( dst_val );
 	const uint64_t src_low = static_cast< uint64_t >( src_val );
-	const uint128_t result = ( static_cast< uint128_t >( src_low ) << 64 ) | dst_low;
+	const uint128_t result = ( static_cast< uint128_t >( src_low ) << 64 ) | (dst_low & 0xFFFFFFFFFFFFFFFF);
 
 	context.set_xmm_raw ( instr.op0_reg ( ), result );
 }

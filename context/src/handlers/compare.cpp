@@ -85,7 +85,7 @@ void handlers::cmpxchg ( const iced::Instruction& instr, KUBERA& context ) {
 /// CMPXCHG16B-Compare and Exchange 16 Bytes
 /// Compares the 128-bit memory destination with RDX:RAX, sets ZF based on equality, and either stores RCX:RBX in the destination (if equal) or loads the destination into RDX:RAX (if not equal).
 void handlers::cmpxchg16b ( const iced::Instruction& instr, KUBERA& context ) {
-  const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+  const uint64_t addr = helpers::calculate_mem_addr( instr, context );
   if ( addr % 16 != 0 ) {
     // !TODO(exception)
     return;

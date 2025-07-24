@@ -60,6 +60,14 @@ namespace kubera
 			return memory.get ( );
 		}
 
+		uint64_t stack_base ( ) const noexcept {
+			return cpu->stack_base;
+		}
+
+		uint64_t stack_limit ( ) const noexcept {
+			return cpu->stack_base + cpu->stack_size;
+		}
+
 		// Returns a mutable reference to cpu->rflags
 		// Warning! This function can overwrite reserved bits!
 		x86::Flags& get_flags ( ) noexcept {
@@ -295,7 +303,7 @@ namespace kubera
 		template <KubRegister reg, Register iced_reg, typename Type>
 		Type get_reg_internal ( ) {
 			if constexpr ( reg == KubRegister::RIP ) {
-				return static_cast<Type>(rip ( ));
+				return static_cast< Type >( rip ( ) );
 			}
 
 			constexpr auto access_mask = get_access_mask_internal<iced_reg, sizeof ( Type )> ( );
@@ -322,6 +330,110 @@ namespace kubera
 			}
 
 			cpu->registers [ reg ] = value;
+		}
+
+		template <KubRegister reg, typename Type>
+		Type get_reg_direct ( ) {
+			if constexpr ( reg == KubRegister::RIP ) {
+				return static_cast< Type >( rip ( ) );
+			}
+
+			const auto concrete_full = cpu->registers [ reg ];
+			return concrete_full;
+		}
+
+		// An internal helper to set a register which is known at compile-time with less overhead
+		template <KubRegister reg, typename Type>
+		void set_reg_direct ( Type value ) {
+			const auto old_full = cpu->registers [ reg ];
+			cpu->registers [ reg ] = value;
+		}
+
+		static constexpr std::array<std::string_view, KubRegister::COUNT> register_names = {
+			"RAX", "RBX", "RCX", "RDX", "RSI", "RDI", "RBP", "RSP",
+			"R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15",
+			"RIP",
+			"DR0", "DR1", "DR2", "DR3", "DR4", "DR5", "DR6", "DR7",
+			"CR0", "CR2", "CR3", "CR4", "CR8",
+			"ES", "CS", "SS", "DS", "FS", "GS"
+		};
+
+		std::array<std::uint64_t, KubRegister::COUNT> register_dump ( ) const noexcept {
+			return cpu->registers;
+		}
+
+		x86::Flags rflags_dump ( ) const noexcept {
+			return cpu->rflags;
+		}
+
+		x86::Mxcsr mxcsr_dump ( ) const noexcept {
+			return cpu->mxcsr;
+		}
+
+		std::vector<std::string> get_register_changes ( const std::array<std::uint64_t, KubRegister::COUNT>& old_registers ) const {
+			std::vector<std::string> changes;
+			for ( size_t i = 0; i < KubRegister::COUNT; ++i ) {
+				if ( cpu->registers [ i ] != old_registers [ i ] && static_cast<KubRegister>(i) != KubRegister::RIP ) {
+					std::stringstream ss;
+					ss << register_names [ i ] << " 0x" << std::hex << old_registers [ i ] << ";0x" << std::hex << cpu->registers [ i ];
+					changes.push_back ( ss.str ( ) );
+				}
+			}
+			return changes;
+		}
+
+		std::vector<std::string> get_rflags_changes ( const x86::Flags& old_rflags ) const {
+			std::vector<std::string> changes;
+			auto add_change = [ &changes ] ( const std::string& name, uint64_t old_val, uint64_t new_val )
+			{
+				if ( old_val != new_val ) {
+					changes.push_back ( name + " " + std::to_string ( old_val ) + ";" + std::to_string ( new_val ) );
+				}
+			};
+			add_change ( "CF", old_rflags.CF, cpu->rflags.CF );
+			add_change ( "PF", old_rflags.PF, cpu->rflags.PF );
+			add_change ( "AF", old_rflags.AF, cpu->rflags.AF );
+			add_change ( "ZF", old_rflags.ZF, cpu->rflags.ZF );
+			add_change ( "SF", old_rflags.SF, cpu->rflags.SF );
+			add_change ( "TF", old_rflags.TF, cpu->rflags.TF );
+			add_change ( "IF", old_rflags.IF, cpu->rflags.IF );
+			add_change ( "DF", old_rflags.DF, cpu->rflags.DF );
+			add_change ( "OF", old_rflags.OF, cpu->rflags.OF );
+			add_change ( "IOPL", old_rflags.IOPL, cpu->rflags.IOPL );
+			add_change ( "NT", old_rflags.NT, cpu->rflags.NT );
+			add_change ( "RF", old_rflags.RF, cpu->rflags.RF );
+			add_change ( "VM", old_rflags.VM, cpu->rflags.VM );
+			add_change ( "AC", old_rflags.AC, cpu->rflags.AC );
+			add_change ( "VIF", old_rflags.VIF, cpu->rflags.VIF );
+			add_change ( "VIP", old_rflags.VIP, cpu->rflags.VIP );
+			add_change ( "ID", old_rflags.ID, cpu->rflags.ID );
+			return changes;
+		}
+
+		std::vector<std::string> get_mxcsr_changes ( const x86::Mxcsr& old_mxcsr ) const {
+			std::vector<std::string> changes;
+			auto add_change = [ &changes ] ( const std::string& name, unsigned int old_val, unsigned int new_val )
+			{
+				if ( old_val != new_val ) {
+					changes.push_back ( name + " " + std::to_string ( old_val ) + ";" + std::to_string ( new_val ) );
+				}
+			};
+			add_change ( "IE", old_mxcsr.IE, cpu->mxcsr.IE );
+			add_change ( "DE", old_mxcsr.DE, cpu->mxcsr.DE );
+			add_change ( "ZE", old_mxcsr.ZE, cpu->mxcsr.ZE );
+			add_change ( "OE", old_mxcsr.OE, cpu->mxcsr.OE );
+			add_change ( "UE", old_mxcsr.UE, cpu->mxcsr.UE );
+			add_change ( "PE", old_mxcsr.PE, cpu->mxcsr.PE );
+			add_change ( "DAZ", old_mxcsr.DAZ, cpu->mxcsr.DAZ );
+			add_change ( "IM", old_mxcsr.IM, cpu->mxcsr.IM );
+			add_change ( "DM", old_mxcsr.DM, cpu->mxcsr.DM );
+			add_change ( "ZM", old_mxcsr.ZM, cpu->mxcsr.ZM );
+			add_change ( "OM", old_mxcsr.OM, cpu->mxcsr.OM );
+			add_change ( "UM", old_mxcsr.UM, cpu->mxcsr.UM );
+			add_change ( "PM", old_mxcsr.PM, cpu->mxcsr.PM );
+			add_change ( "RC", old_mxcsr.RC, cpu->mxcsr.RC );
+			add_change ( "FTZ", old_mxcsr.FTZ, cpu->mxcsr.FTZ );
+			return changes;
 		}
 	};
 }

@@ -157,7 +157,7 @@ void handlers::int_ ( const iced::Instruction& instr, KUBERA& context ) {
 /// FXSAVE-Save x87 FPU, MMX, and SSE State
 /// Saves the x87 FPU (FCW, FSW, FTW, FOP, FIP, FDP), MMX, and SSE (MXCSR, XMM0-XMM15) state to a 512-byte memory region specified by the destination operand.
 void handlers::fxsave ( const iced::Instruction& instr, KUBERA& context ) {
-	const uint64_t base_addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+	const uint64_t base_addr = helpers::calculate_mem_addr( instr, context );
 	if ( base_addr % 16 != 0 ) {
 		// !TODO(exception)
 		return;
@@ -262,7 +262,7 @@ void handlers::hlt ( const iced::Instruction& instr, KUBERA& context ) {
 /// STMXCSR-Store MXCSR Register
 /// Stores the MXCSR register to a 32-bit memory location specified by the destination operand.
 void handlers::stmxcsr ( const iced::Instruction& instr, KUBERA& context ) {
-	const uint64_t dest_addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+	const uint64_t dest_addr = helpers::calculate_mem_addr( instr, context );
 	const size_t op_size = instr.op0_size ( );
 	if ( op_size != 4 ) {
 		// !TODO(exception)
@@ -274,7 +274,7 @@ void handlers::stmxcsr ( const iced::Instruction& instr, KUBERA& context ) {
 /// LDMXCSR-Load MXCSR Register
 /// Loads the MXCSR register from a 32-bit memory location specified by the source operand.
 void handlers::ldmxcsr ( const iced::Instruction& instr, KUBERA& context ) {
-	const uint64_t src_addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+	const uint64_t src_addr = helpers::calculate_mem_addr( instr, context );
 	const size_t op_size = instr.op0_size ( );
 	if ( op_size != 4 ) {
 		// !TODO(exception)

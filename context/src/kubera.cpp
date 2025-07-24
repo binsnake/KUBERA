@@ -99,30 +99,34 @@ void KUBERA::set_rflags ( uint64_t rflags ) noexcept {
 	}
 }
 
-void KUBERA::set_reg ( Register reg, uint64_t value_to_set, size_t size ) {
-	const auto full_reg = map_register ( reg );
-	const auto old_full_concrete = cpu->registers [ full_reg ];
-
-	const auto access_mask = get_access_mask ( reg, size );
-	const auto shift = get_access_shift ( reg, size );
-	uint64_t size_mask = GET_OPERAND_MASK ( size );
-	uint64_t new_full_concrete = value_to_set;
-
-	if ( size == 4 && ( full_reg >= KubRegister::RAX && full_reg <= KubRegister::R15 ) ) {
-		new_full_concrete &= 0xFFFFFFFFULL;
-	}
-	else {
-		uint64_t shifted_value = ( value_to_set & size_mask ) << shift;
-		new_full_concrete = ( old_full_concrete & ~access_mask ) | ( shifted_value & access_mask );
-	}
-
-	cpu->registers [ full_reg ] = new_full_concrete;
+void KUBERA::set_reg(Register reg, uint64_t value_to_set, size_t size) {
+    const auto full_reg = map_register(reg);
+    
+    if (size == 4 && (full_reg >= KubRegister::RAX && full_reg <= KubRegister::R15)) {
+        // 32-bit operations zero the upper 32 bits of the destination register.
+        cpu->registers[full_reg] = value_to_set & 0xFFFFFFFFULL;
+    } else if (size == 8) {
+        // 64-bit operations overwrite the entire register.
+        cpu->registers[full_reg] = value_to_set;
+    }
+    else {
+        // 8-bit and 16-bit operations merge with the destination.
+        const auto old_full_concrete = cpu->registers[full_reg];
+        const auto access_mask = get_access_mask(reg, size);
+        const auto shift = get_access_shift(reg, size);
+        const uint64_t size_mask = GET_OPERAND_MASK(size);
+        
+        const uint64_t shifted_value = (value_to_set & size_mask) << shift;
+        const uint64_t new_full_concrete = (old_full_concrete & ~access_mask) | (shifted_value & access_mask);
+        
+        cpu->registers[full_reg] = new_full_concrete;
+    }
 }
 
 bool KUBERA::is_within_stack_bounds ( uint64_t address, size_t size ) const noexcept {
 	const auto stack_base_addr = cpu->stack_base;
-	const auto stack_bot = stack_base_addr;
 	const auto stack_top = stack_base_addr + cpu->stack_size;
+	const auto stack_bot = stack_base_addr;
 	return address >= stack_bot && address <= stack_top - size;
 }
 
@@ -386,6 +390,7 @@ void KUBERA::set_xmm_double ( Register reg, double value ) {
 	current_raw = ( current_raw & ~uint128_t ( 0xFFFFFFFFFFFFFFFF ) ) | uint128_t ( new_low_bits );
 	set_xmm_raw ( reg, current_raw );
 }
+
 #include <print>
 void unsupported_instruction ( const iced::Instruction& instr, KUBERA& context ) {
 	std::println ( "[KUBERA] Unsupported instruction {}, skipping.", instr.to_string ( ) );
@@ -632,7 +637,7 @@ void map_handlers ( ) {
 
 KUBERA::KUBERA ( ) {
 	memory = std::make_unique<VirtualMemory> ( );
-	const uint64_t stack_addr = memory->alloc ( 0x200000, PageProtection::READ | PageProtection::WRITE );
+	const uint64_t stack_addr = memory->alloc_at ( 0xDEADBEEF00000000, 0x200000, PageProtection::READ | PageProtection::WRITE );
 	cpu = std::make_unique<CPU> ( stack_addr, 0x200000 );
 	decoder = std::make_unique<iced::Decoder> ( );
 	instruction_dispatch_table = std::make_unique<InstructionHandlerList> ();

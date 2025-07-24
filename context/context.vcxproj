@@ -49,6 +49,10 @@
     <ClCompile Include="src\handlers\syscall.cpp" />
     <ClCompile Include="src\handlers\system.cpp" />
     <ClCompile Include="src\kubera.cpp" />
+    <ClCompile Include="src\virtual_memory.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="memset.txt" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
