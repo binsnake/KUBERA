@@ -29,15 +29,11 @@
     <ClInclude Include="module_manager.hpp" />
     <ClInclude Include="process.hpp" />
     <ClInclude Include="syscalls.hpp" />
-    <ClInclude Include="syscall_host.hpp" />
     <ClInclude Include="teb.hpp" />
     <ClInclude Include="wintypes.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="docs.md" />
-    <MASM Include="_syscall_host.asm">
-      <FileType>Document</FileType>
-    </MASM>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

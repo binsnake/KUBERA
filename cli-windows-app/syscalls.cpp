@@ -4,8 +4,8 @@
 #include <algorithm>
 #include <cctype>
 #include "process.hpp"
-#include "syscall_host.hpp"
 #include "wintypes.hpp"
+
 using namespace kubera;
 
 #define GET_RSP(ctx) ctx.get_reg_internal<KubRegister::RSP, Register::RSP, uint64_t> ( )
