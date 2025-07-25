@@ -124,13 +124,8 @@ void handlers::pop ( const iced::Instruction& instr, KUBERA& context ) {
 		helpers::set_operand_value<uint64_t> ( instr, 0u, masked_value, context );
 	}
 	else if ( instr.op0_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
-		if ( context.is_within_stack_bounds ( addr, op_size ) ) {
-			context.set_stack<uint64_t> ( addr, masked_value );
-		}
-		else {
-			context.set_memory<uint64_t> ( addr, masked_value );
-		}
+		const uint64_t addr = helpers::calculate_mem_addr ( instr, context );
+		context.set_memory<uint64_t> ( addr, masked_value );
 	}
 	else {
 		// !TODO(exception)

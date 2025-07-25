@@ -819,4 +819,27 @@ namespace windows
 		DWORD64 LastExceptionToRip;
 		DWORD64 LastExceptionFromRip;
 	} CONTEXT, *PCONTEXT;
+
+	typedef struct _PROCESS_BASIC_INFORMATION {
+		long ExitStatus;                    // The exit status of the process. (GetExitCodeProcess)
+		PEB64* PebBaseAddress;                    // A pointer to the process environment block (PEB) of the process.
+		uint64_t AffinityMask;                 // The affinity mask of the process. (GetProcessAffinityMask) (deprecated)
+		LONG BasePriority;                 // The base priority of the process. (GetPriorityClass)
+		HANDLE UniqueProcessId;                 // The unique identifier of the process. (GetProcessId)
+		HANDLE InheritedFromUniqueProcessId;    // The unique identifier of the parent process.
+	} PROCESS_BASIC_INFORMATION, * PPROCESS_BASIC_INFORMATION;
+
+	typedef struct _SYSTEM_BASIC_INFORMATION {
+		ULONG Reserved;
+		ULONG TimerResolution;
+		ULONG PageSize;
+		ULONG NumberOfPhysicalPages;
+		ULONG LowestPhysicalPageNumber;
+		ULONG HighestPhysicalPageNumber;
+		ULONG AllocationGranularity;
+		ULONGLONG MinimumUserModeAddress;
+		ULONGLONG MaximumUserModeAddress;
+		ULONGLONG ActiveProcessorsAffinityMask;
+		char NumberOfProcessors;
+	} SYSTEM_BASIC_INFORMATION, * PSYSTEM_BASIC_INFORMATION;
 };

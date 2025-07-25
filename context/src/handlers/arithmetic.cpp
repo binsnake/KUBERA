@@ -14,9 +14,9 @@ void handlers::add ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint64_t ub = b & mask;
 	const uint64_t res = ( ua + ub ) & mask;
 
-	const int64_t sa = SIGN_EXTEND(ua, op_size);
-	const int64_t sb = SIGN_EXTEND(ub, op_size);
-	const int64_t sres = SIGN_EXTEND(res, op_size);
+	const int64_t sa = SIGN_EXTEND ( ua, op_size );
+	const int64_t sb = SIGN_EXTEND ( ub, op_size );
+	const int64_t sres = SIGN_EXTEND ( res, op_size );
 
 	auto& flags = context.get_flags ( );
 	flags.CF = res < ua;
@@ -39,9 +39,9 @@ void handlers::sub ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint64_t ub = b & mask;
 	const uint64_t res = ( ua - ub ) & mask;
 
-	const int64_t sa = SIGN_EXTEND(ua, op_size);
-	const int64_t sb = SIGN_EXTEND(ub, op_size);
-	const int64_t sres = SIGN_EXTEND(res, op_size);
+	const int64_t sa = SIGN_EXTEND ( ua, op_size );
+	const int64_t sb = SIGN_EXTEND ( ub, op_size );
+	const int64_t sres = SIGN_EXTEND ( res, op_size );
 
 	auto& flags = context.get_flags ( );
 	flags.CF = ua < ub;
@@ -62,8 +62,8 @@ void handlers::inc ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint64_t ua = a & mask;
 	const uint64_t res = ( ua + 1 ) & mask;
 
-	const int64_t sa = SIGN_EXTEND(ua, op_size);
-	const int64_t sres = SIGN_EXTEND(res, op_size);
+	const int64_t sa = SIGN_EXTEND ( ua, op_size );
+	const int64_t sres = SIGN_EXTEND ( res, op_size );
 
 	auto& flags = context.get_flags ( );
 	flags.OF = ( sa >= 0 && sres < 0 );
@@ -83,8 +83,8 @@ void handlers::dec ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint64_t ua = a & mask;
 	const uint64_t res = ( ua - 1 ) & mask;
 
-	const int64_t sa = SIGN_EXTEND(ua, op_size);
-	const int64_t sres = SIGN_EXTEND(res, op_size);
+	const int64_t sa = SIGN_EXTEND ( ua, op_size );
+	const int64_t sres = SIGN_EXTEND ( res, op_size );
 
 	auto& flags = context.get_flags ( );
 	flags.OF = ( sa < 0 && sres >= 0 );
@@ -108,11 +108,11 @@ void multiply ( const iced::Instruction& instr, KUBERA& context, Func set_flags 
 		case 2: low_reg = Register::AX; high_reg = Register::DX; break;
 		case 4: low_reg = Register::EAX; high_reg = Register::EDX; break;
 		case 8: low_reg = Register::RAX; high_reg = Register::RDX; break;
-		default: UNREACHABLE();
+		default: UNREACHABLE ( );
 	}
 
 	const uint64_t acc_val = context.get_reg ( low_reg, op_size );
-	const uint128_t full_res = 
+	const uint128_t full_res =
 		uint128_t ( static_cast< OpType >( acc_val ) ) * uint128_t ( static_cast< OpType >( src_val ) );
 
 	const uint64_t low_res = static_cast< uint64_t >( full_res & mask );
@@ -134,62 +134,62 @@ void handlers::mul ( const iced::Instruction& instr, KUBERA& context ) {
 }
 
 template <size_t OpCount>
-void imul_handler(const iced::Instruction& instr, KUBERA& context);
+void imul_handler ( const iced::Instruction& instr, KUBERA& context );
 
 template <>
-void imul_handler<1>(const iced::Instruction& instr, KUBERA& context) {
-    const size_t op_size = instr.op0_size();
-    const int64_t src_val = static_cast<int64_t>(helpers::get_operand_value<uint64_t>(instr, 0u, context));
-    const uint64_t mask = GET_OPERAND_MASK(op_size);
+void imul_handler<1> ( const iced::Instruction& instr, KUBERA& context ) {
+	const size_t op_size = instr.op0_size ( );
+	const int64_t src_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 0u, context ) );
+	const uint64_t mask = GET_OPERAND_MASK ( op_size );
 
-    Register low_reg, high_reg;
-    switch (op_size) {
-        case 1: low_reg = Register::AL; high_reg = Register::AH; break;
-        case 2: low_reg = Register::AX; high_reg = Register::DX; break;
-        case 4: low_reg = Register::EAX; high_reg = Register::EDX; break;
-        case 8: low_reg = Register::RAX; high_reg = Register::RDX; break;
-        default: UNREACHABLE();
-    }
+	Register low_reg, high_reg;
+	switch ( op_size ) {
+		case 1: low_reg = Register::AL; high_reg = Register::AH; break;
+		case 2: low_reg = Register::AX; high_reg = Register::DX; break;
+		case 4: low_reg = Register::EAX; high_reg = Register::EDX; break;
+		case 8: low_reg = Register::RAX; high_reg = Register::RDX; break;
+		default: UNREACHABLE ( );
+	}
 
-    const int64_t acc_val = static_cast<int64_t>(context.get_reg(low_reg, op_size));
-    const int128_t full_res = static_cast<int128_t>(acc_val) * static_cast<int128_t>(src_val);
+	const int64_t acc_val = static_cast< int64_t >( context.get_reg ( low_reg, op_size ) );
+	const int128_t full_res = static_cast< int128_t >( acc_val ) * static_cast< int128_t >( src_val );
 
-    const uint64_t low_res = static_cast<uint64_t>(full_res);
-    const uint64_t high_res = static_cast<uint64_t>(full_res >> (op_size * 8));
+	const uint64_t low_res = static_cast< uint64_t >( full_res );
+	const uint64_t high_res = static_cast< uint64_t >( full_res >> ( op_size * 8 ) );
 
-    context.set_reg(low_reg, low_res, op_size);
-    context.set_reg(high_reg, high_res, op_size);
+	context.set_reg ( low_reg, low_res, op_size );
+	context.set_reg ( high_reg, high_res, op_size );
 
-    auto& flags = context.get_flags();
-    const int64_t sext_low = SIGN_EXTEND(low_res & mask, op_size);
-    flags.CF = flags.OF = !(sext_low == static_cast<int64_t>(full_res));
+	auto& flags = context.get_flags ( );
+	const int64_t sext_low = SIGN_EXTEND ( low_res & mask, op_size );
+	flags.CF = flags.OF = !( sext_low == static_cast< int64_t >( full_res ) );
 }
 
 template <>
-void imul_handler<2>(const iced::Instruction& instr, KUBERA& context) {
-    const size_t op_size = instr.op0_size();
-    const int64_t src1_val = static_cast<int64_t>(helpers::get_operand_value<uint64_t>(instr, 0u, context));
-    const int64_t src2_val = static_cast<int64_t>(helpers::get_operand_value<uint64_t>(instr, 1u, context));
-    const uint64_t mask = GET_OPERAND_MASK(op_size);
+void imul_handler<2> ( const iced::Instruction& instr, KUBERA& context ) {
+	const size_t op_size = instr.op0_size ( );
+	const int64_t src1_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 0u, context ) );
+	const int64_t src2_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 1u, context ) );
+	const uint64_t mask = GET_OPERAND_MASK ( op_size );
 
-    const int128_t res128 = static_cast<int128_t>(src1_val) * static_cast<int128_t>(src2_val);
-    const uint64_t res64 = static_cast<uint64_t>(res128);
+	const int128_t res128 = static_cast< int128_t >( src1_val ) * static_cast< int128_t >( src2_val );
+	const uint64_t res64 = static_cast< uint64_t >( static_cast< int64_t >( res128 ) );
 
-    helpers::set_operand_value<uint64_t>(instr, 0u, res64, context);
+	helpers::set_operand_value<uint64_t> ( instr, 0u, res64, context );
 
-    auto& flags = context.get_flags();
-    const int64_t sext_res = SIGN_EXTEND(res64 & mask, op_size);
-    flags.CF = flags.OF = !(sext_res == static_cast<int64_t>(res128));
+	auto& flags = context.get_flags ( );
+	const int64_t sext_res = SIGN_EXTEND ( res64 & mask, op_size );
+	flags.CF = flags.OF = !( sext_res == static_cast< int64_t >( res128 ) );
 }
 
 /// IMUL - Signed multiply
-void handlers::imul(const iced::Instruction& instr, KUBERA& context) {
-    switch (instr.op_count()) {
-        case 1: return imul_handler<1>(instr, context);
-        case 2: return imul_handler<2>(instr, context);
-				default:
-					UNREACHABLE ( );
-    }
+void handlers::imul ( const iced::Instruction& instr, KUBERA& context ) {
+	switch ( instr.op_count ( ) ) {
+		case 1: return imul_handler<1> ( instr, context );
+		case 2: return imul_handler<2> ( instr, context );
+		default:
+			UNREACHABLE ( );
+	}
 }
 
 template <typename DivType, typename QuotType, typename Func>
@@ -203,7 +203,7 @@ void divide ( const iced::Instruction& instr, KUBERA& context, Func build_divide
 		case 2: quotient_reg = Register::AX; remainder_reg = Register::DX; break;
 		case 4: quotient_reg = Register::EAX; remainder_reg = Register::EDX; break;
 		case 8: quotient_reg = Register::RAX; remainder_reg = Register::RDX; break;
-		default: UNREACHABLE();
+		default: UNREACHABLE ( );
 	}
 
 	auto dividend = build_dividend ( context, op_size, quotient_reg, remainder_reg );
@@ -269,9 +269,9 @@ void add_sub_with_carry ( const iced::Instruction& instr, KUBERA& context, Func 
 	const uint64_t carry = context.get_flags ( ).CF ? 1 : 0;
 	const uint64_t res = operation ( ua, ub, carry ) & mask;
 
-	const int64_t sa = SIGN_EXTEND(ua, op_size);
-	const int64_t sb = SIGN_EXTEND(ub, op_size);
-	const int64_t sres = SIGN_EXTEND(res, op_size);
+	const int64_t sa = SIGN_EXTEND ( ua, op_size );
+	const int64_t sb = SIGN_EXTEND ( ub, op_size );
+	const int64_t sres = SIGN_EXTEND ( res, op_size );
 
 	auto& flags = context.get_flags ( );
 	flags.CF = operation ( ua, ub, carry ) > mask;
@@ -311,8 +311,8 @@ void handlers::neg ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint64_t ua = a & mask;
 	const uint64_t res = ( ~ua + 1 ) & mask;
 
-	const int64_t sa = SIGN_EXTEND(ua, op_size);
-	const int64_t sres = SIGN_EXTEND(res, op_size);
+	const int64_t sa = SIGN_EXTEND ( ua, op_size );
+	const int64_t sres = SIGN_EXTEND ( res, op_size );
 
 	auto& flags = context.get_flags ( );
 	flags.CF = ( ua != 0 );
@@ -338,9 +338,9 @@ void handlers::xadd ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint64_t ub = b & mask;
 	const uint64_t res = ( ua + ub ) & mask;
 
-	const int64_t sa = SIGN_EXTEND(ua, op_size);
-	const int64_t sb = SIGN_EXTEND(ub, op_size);
-	const int64_t sres = SIGN_EXTEND(res, op_size);
+	const int64_t sa = SIGN_EXTEND ( ua, op_size );
+	const int64_t sb = SIGN_EXTEND ( ub, op_size );
+	const int64_t sres = SIGN_EXTEND ( res, op_size );
 
 	auto& flags = context.get_flags ( );
 	flags.CF = ( res < ua );

@@ -135,14 +135,14 @@ void handlers::vmovaps ( const iced::Instruction& instr, KUBERA& context ) {
 	}
 
 	if ( instr.op1_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
+		const uint64_t addr = helpers::calculate_mem_addr ( instr, context );
 		if ( addr % op_size != 0 ) {
 			// !TODO(exception)
 			return;
 		}
 	}
 	if ( instr.op0_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
+		const uint64_t addr = helpers::calculate_mem_addr ( instr, context );
 		if ( addr % op_size != 0 ) {
 			// !TODO(exception)
 			return;
@@ -216,7 +216,7 @@ void handlers::movlhps ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint128_t src_val = context.get_xmm_raw ( instr.op1_reg ( ) );
 	const uint64_t dst_low = static_cast< uint64_t >( dst_val );
 	const uint64_t src_low = static_cast< uint64_t >( src_val );
-	const uint128_t result = ( static_cast< uint128_t >( src_low ) << 64 ) | (dst_low & 0xFFFFFFFFFFFFFFFF);
+	const uint128_t result = ( static_cast< uint128_t >( src_low ) << 64 ) | ( dst_low & 0xFFFFFFFFFFFFFFFF );
 
 	context.set_xmm_raw ( instr.op0_reg ( ), result );
 }
@@ -494,13 +494,8 @@ void handlers::movss ( const iced::Instruction& instr, KUBERA& context ) {
 		context.set_xmm_float ( instr.op0_reg ( ), src_val );
 	}
 	else if ( instr.op0_kind ( ) == OpKindSimple::Memory ) {
-		const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
-		if ( context.is_within_stack_bounds ( addr, 4 ) ) {
-			context.set_stack<uint32_t> ( addr, std::bit_cast< uint32_t >( src_val ) );
-		}
-		else {
-			context.set_memory<uint32_t> ( addr, std::bit_cast< uint32_t >( src_val ) );
-		}
+		const uint64_t addr = helpers::calculate_mem_addr( instr, context );
+		context.set_memory<uint32_t> ( addr, std::bit_cast< uint32_t >( src_val ) );
 	}
 }
 
@@ -668,7 +663,7 @@ template<typename T>
 static void padd ( const iced::Instruction& instr, KUBERA& context, size_t elem_size ) {
 	const uint128_t dst_val = context.get_xmm_raw ( instr.op0_reg ( ) );
 	const uint128_t src_val = helpers::get_operand_value<uint128_t> ( instr, 1u, context );
-	const int num_elements = static_cast<int>(16 / elem_size);
+	const int num_elements = static_cast< int >( 16 / elem_size );
 	uint128_t result = 0;
 
 	for ( int i = 0; i < num_elements; ++i ) {

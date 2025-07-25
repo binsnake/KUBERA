@@ -390,12 +390,7 @@ void handlers::fnstcw ( const iced::Instruction& instr, KUBERA& context ) {
 		return;
 	}
 
-	const uint64_t addr = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
+	const uint64_t addr = helpers::calculate_mem_addr ( instr, context );
 	const uint16_t control_word = context.get_fpu ( ).fpu_control_word.value;
-	if ( context.is_within_stack_bounds ( addr, 2 ) ) {
-		context.set_stack<uint16_t> ( addr, control_word );
-	}
-	else {
-		context.set_memory<uint16_t> ( addr, control_word );
-	}
+	context.set_memory<uint16_t> ( addr, control_word );
 }

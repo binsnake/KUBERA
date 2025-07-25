@@ -40,9 +40,15 @@ constexpr uint32_t STATUS_INVALID_ADDRESS = 0xC0000008L;
 constexpr uint32_t STATUS_OBJECT_NAME_EXISTS = 0x40000000L;
 constexpr uint32_t STATUS_BUFFER_TOO_SMALL = 0xC0000023L;
 
+template <typename T>
+T* translate_arg ( kubera::KUBERA& ctx, uint64_t arg ) {
+	auto* vm = ctx.get_virtual_memory ( );
+	return reinterpret_cast< T* >( vm->translate ( arg, PageProtection::READ | PageProtection::WRITE ) );
+}
+
 void NtCreateEvent ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 	auto* vm = ctx.get_virtual_memory ( );
-	auto* attributes = ARG3(ctx) != 0 ? reinterpret_cast< windows::_OBJECT_ATTRIBUTES* >( vm->translate_bypass ( ARG3 ( ctx ) ) ) : nullptr;
+	auto* attributes = ARG3 ( ctx ) != 0 ? reinterpret_cast< windows::_OBJECT_ATTRIBUTES* >( vm->translate_bypass ( ARG3 ( ctx ) ) ) : nullptr;
 	std::u16string name;
 	if ( attributes ) {
 		if ( attributes->ObjectName ) {
@@ -145,6 +151,16 @@ void NtAccessCheck ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 	SET_RETURN ( ctx, STATUS_NOT_SUPPORTED );
 }
 
+/*
+__kernel_entry NTSTATUS NtQueryInformationProcess(
+	[in]            HANDLE           ProcessHandle,
+	[in]            PROCESSINFOCLASS ProcessInformationClass,
+	[out]           PVOID            ProcessInformation,
+	[in]            ULONG            ProcessInformationLength,
+	[out, optional] PULONG           ReturnLength
+);
+*/
+
 void NtQueryInformationProcess ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 	if ( ARG1 ( ctx ) != CURRENT_PROCESS ) {
 		std::println ( "[syscall - NtQueryInformationProcess] Attempted on foreign process" );
@@ -159,9 +175,32 @@ void NtQueryInformationProcess ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 			ctx.get_virtual_memory ( )->write ( ARG3 ( ctx ), 0 );
 			break;
 		};
+		case ProcessBasicInformation:
+		{
+			if ( ARG4 ( ctx ) < sizeof ( windows::_PROCESS_BASIC_INFORMATION ) ) {
+				std::println ( "[syscall - NtQueryInformationProcess] Buffer too small for ProcessBasicInformation" );
+				SET_RETURN ( ctx, STATUS_BUFFER_TOO_SMALL );
+				return;
+			}
+
+			auto* pbi = translate_arg< windows::_PROCESS_BASIC_INFORMATION > ( ctx, ARG3 ( ctx ) );
+			pbi->PebBaseAddress = reinterpret_cast< windows::PEB64* >( windows::peb_address );
+			pbi->UniqueProcessId = windows::HANDLE { .bits = 2432 };
+			break;
+		}
+		case ProcessCookie:
+		{
+			if ( ARG4( ctx ) < sizeof ( uint32_t ) ) {
+				std::println ( "[syscall - NtQueryInformationProcess] Buffer too small for ProcessCookie" );
+				SET_RETURN ( ctx, STATUS_BUFFER_TOO_SMALL );
+				return;
+			}
+			*translate_arg<uint32_t> ( ctx, ARG3 ( ctx ) ) = 0x1234567;
+			break;
+		}
 		default:
 			std::println ( "unsupported" );
-			SET_RETURN ( ctx, STATUS_NOT_SUPPORTED );
+			return SET_RETURN ( ctx, STATUS_NOT_SUPPORTED );
 	}
 
 	SET_RETURN ( ctx, STATUS_SUCCESS );
@@ -246,6 +285,43 @@ void NtProtectVirtualMemory ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 }
 
 void NtQuerySystemInformation ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
+
+	switch ( ARG1 ( ctx ) ) {
+		case SystemBasicInformation:
+		case SystemEmulationBasicInformation:
+		{
+			if ( ARG3 ( ctx ) < sizeof ( windows::_SYSTEM_BASIC_INFORMATION ) ) {
+				if ( ARG4 ( ctx ) != 0 ) {
+					*translate_arg< uint32_t > ( ctx, ARG4 ( ctx ) ) = sizeof ( windows::_SYSTEM_BASIC_INFORMATION );
+				}
+
+				std::println ( "[syscall - NtQuerySystemInformation] Buffer too small for SystemBasicInformation" );
+				SET_RETURN ( ctx, STATUS_BUFFER_TOO_SMALL );
+				return;
+			}
+
+			auto* sbi = translate_arg< windows::_SYSTEM_BASIC_INFORMATION > ( ctx, ARG2 ( ctx ) );
+			if ( !sbi ) {
+				std::println ( "[syscall - NtQuerySystemInformation] Invalid buffer for SystemBasicInformation" );
+				SET_RETURN ( ctx, STATUS_INVALID_ADDRESS );
+				return;
+			}
+			sbi->NumberOfProcessors = 1; // Single core for now
+			sbi->PageSize = 0x1000; // 4KB pages
+			sbi->LowestPhysicalPageNumber = 0;
+			sbi->HighestPhysicalPageNumber = 0xFFFFFFFF; // Max physical pages
+			sbi->AllocationGranularity = 0x10000; // 64KB allocation granularity
+			sbi->MinimumUserModeAddress = 0x0000000000010000ULL;
+			sbi->MaximumUserModeAddress = 0x00007ffffffeffffULL;
+			sbi->ActiveProcessorsAffinityMask = 0x1; // Single processor affinity
+			SET_RETURN ( ctx, STATUS_SUCCESS );
+			return;
+		}
+		default:
+			std::println ( "[syscall - NtQuerySystemInformation] Unsupported class {:#x}", ARG2 ( ctx ) );
+			break;
+	}
+
 	SET_RETURN ( ctx, STATUS_NOT_SUPPORTED );
 }
 
