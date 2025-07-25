@@ -18,8 +18,8 @@ namespace kubera
 		explicit VirtualMemory ( std::size_t page_sz = 0x1000 );
 		~VirtualMemory ( );
 
-		[[nodiscard]] uint64_t alloc ( std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 );
-		[[nodiscard]] uint64_t alloc_at ( uint64_t base_addr, std::size_t size, uint8_t prot );
+		[[nodiscard]] uint64_t alloc ( std::size_t size, uint8_t prot, std::size_t alignment = 0x1000, bool commit_immediately = false );
+		[[nodiscard]] uint64_t alloc_at ( uint64_t base_addr, std::size_t size, uint8_t prot, std::size_t alignment = 0x1000, bool commit_immediately = false );
 		[[nodiscard]] uint8_t* commit ( std::size_t size );
 		void uncommit ( uint8_t* data );
 		[[nodiscard]] uint64_t load ( const void* data, std::size_t size, uint8_t prot, std::size_t alignment = 0x1000 );

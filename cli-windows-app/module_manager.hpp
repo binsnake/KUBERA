@@ -162,10 +162,10 @@ public:
 		std::size_t image_size = nt->optional_header.size_image;
 		uint64_t base = 0;
 		if ( preferred_base ) {
-			base = vm->alloc_at ( preferred_base, image_size, PageProtection::READ | PageProtection::WRITE );
+			base = vm->alloc_at ( preferred_base, image_size, PageProtection::READ | PageProtection::WRITE, 0x1000, true );
 		}
 		else {
-			base = vm->alloc ( image_size, PageProtection::READ | PageProtection::WRITE );
+			base = vm->alloc ( image_size, PageProtection::READ | PageProtection::WRITE, 0x1000, true );
 		}
 		int64_t delta = static_cast< int64_t >( base - nt->optional_header.image_base );
 

@@ -3,6 +3,24 @@
 #include <cstdint>
 #include <context/KUBERA.hpp>
 
+#define CONTEXT_AMD64   0x00100000L
+
+#define CONTEXT_CONTROL         (CONTEXT_AMD64 | 0x00000001L)
+#define CONTEXT_INTEGER         (CONTEXT_AMD64 | 0x00000002L)
+#define CONTEXT_SEGMENTS        (CONTEXT_AMD64 | 0x00000004L)
+#define CONTEXT_FLOATING_POINT  (CONTEXT_AMD64 | 0x00000008L)
+#define CONTEXT_DEBUG_REGISTERS (CONTEXT_AMD64 | 0x00000010L)
+
+#define CONTEXT_FULL            (CONTEXT_CONTROL | CONTEXT_INTEGER | \
+                                 CONTEXT_FLOATING_POINT)
+
+#define CONTEXT_ALL             (CONTEXT_CONTROL | CONTEXT_INTEGER | \
+                                 CONTEXT_SEGMENTS | CONTEXT_FLOATING_POINT | \
+                                 CONTEXT_DEBUG_REGISTERS)
+
+#define CONTEXT_XSTATE          (CONTEXT_AMD64 | 0x00000040L)
+#define CONTEXT_KERNEL_CET      (CONTEXT_AMD64 | 0x00000080L)
+
 namespace windows
 {
 	constexpr uint16_t code_segment = 0x33;
@@ -53,6 +71,7 @@ namespace windows
 	typedef wchar_t WCHAR;
 	typedef unsigned short WORD;
 	typedef unsigned int DWORD;
+	typedef unsigned long long DWORD64;
 	typedef unsigned short USHORT;
 
 	union ULARGE_INTEGER {
@@ -657,4 +676,147 @@ namespace windows
 		uint64_t bits;
 		std::uint64_t h;
 	};
+
+	typedef struct __declspec ( align(16) ) _M128A {
+		ULONGLONG Low;
+		LONGLONG High;
+	} M128A, * PM128A;
+
+	struct _XMM_SAVE_AREA32 {
+		USHORT ControlWord;                                                     //0x0
+		USHORT StatusWord;                                                      //0x2
+		UCHAR TagWord;                                                          //0x4
+		UCHAR Reserved1;                                                        //0x5
+		USHORT ErrorOpcode;                                                     //0x6
+		ULONG ErrorOffset;                                                      //0x8
+		USHORT ErrorSelector;                                                   //0xc
+		USHORT Reserved2;                                                       //0xe
+		ULONG DataOffset;                                                       //0x10
+		USHORT DataSelector;                                                    //0x14
+		USHORT Reserved3;                                                       //0x16
+		ULONG MxCsr;                                                            //0x18
+		ULONG MxCsr_Mask;                                                       //0x1c
+		struct _M128A FloatRegisters [ 8 ];                                        //0x20
+		struct _M128A XmmRegisters [ 16 ];                                         //0xa0
+		UCHAR Reserved4 [ 96 ];                                                    //0x1a0
+	};
+
+	typedef struct __declspec ( align( 16 ) ) __pragma( warning ( push ) ) __pragma( warning ( disable:4845 ) ) __declspec( no_init_all ) __pragma( warning ( pop ) ) _CONTEXT {
+
+		//
+		// Register parameter home addresses.
+		//
+		// N.B. These fields are for convience - they could be used to extend the
+		//      context record in the future.
+		//
+
+		DWORD64 P1Home;
+		DWORD64 P2Home;
+		DWORD64 P3Home;
+		DWORD64 P4Home;
+		DWORD64 P5Home;
+		DWORD64 P6Home;
+
+		//
+		// Control flags.
+		//
+
+		DWORD ContextFlags;
+		DWORD MxCsr;
+
+		//
+		// Segment Registers and processor flags.
+		//
+
+		WORD   SegCs;
+		WORD   SegDs;
+		WORD   SegEs;
+		WORD   SegFs;
+		WORD   SegGs;
+		WORD   SegSs;
+		DWORD EFlags;
+
+		//
+		// Debug registers
+		//
+
+		DWORD64 Dr0;
+		DWORD64 Dr1;
+		DWORD64 Dr2;
+		DWORD64 Dr3;
+		DWORD64 Dr6;
+		DWORD64 Dr7;
+
+		//
+		// Integer registers.
+		//
+
+		DWORD64 Rax;
+		DWORD64 Rcx;
+		DWORD64 Rdx;
+		DWORD64 Rbx;
+		DWORD64 Rsp;
+		DWORD64 Rbp;
+		DWORD64 Rsi;
+		DWORD64 Rdi;
+		DWORD64 R8;
+		DWORD64 R9;
+		DWORD64 R10;
+		DWORD64 R11;
+		DWORD64 R12;
+		DWORD64 R13;
+		DWORD64 R14;
+		DWORD64 R15;
+
+		//
+		// Program counter.
+		//
+
+		DWORD64 Rip;
+
+		//
+		// Floating point state.
+		//
+
+		union {
+			_XMM_SAVE_AREA32 FltSave;
+			struct {
+				M128A Header [ 2 ];
+				M128A Legacy [ 8 ];
+				M128A Xmm0;
+				M128A Xmm1;
+				M128A Xmm2;
+				M128A Xmm3;
+				M128A Xmm4;
+				M128A Xmm5;
+				M128A Xmm6;
+				M128A Xmm7;
+				M128A Xmm8;
+				M128A Xmm9;
+				M128A Xmm10;
+				M128A Xmm11;
+				M128A Xmm12;
+				M128A Xmm13;
+				M128A Xmm14;
+				M128A Xmm15;
+			} DUMMYSTRUCTNAME;
+		} DUMMYUNIONNAME;
+
+		//
+		// Vector registers.
+		//
+
+		M128A VectorRegister [ 26 ];
+		DWORD64 VectorControl;
+
+		//
+		// Special debug control registers.
+		//
+
+		DWORD64 DebugControl;
+		DWORD64 LastBranchToRip;
+		DWORD64 LastBranchFromRip;
+		DWORD64 LastExceptionToRip;
+		DWORD64 LastExceptionFromRip;
+	} CONTEXT, *PCONTEXT;
 };

@@ -8,21 +8,19 @@
 #include "syscalls.hpp"
 #include "module_manager.hpp"
 #include "process.hpp"
-#define NOMINMAX
-#include <Windows.h>
 using namespace kubera;
 
 typedef struct _API_SET_NAMESPACE {
-	ULONG Version;
-	ULONG Size;
-	ULONG Flags;
-	ULONG Count;
-	ULONG EntryOffset;
-	ULONG HashOffset;
-	ULONG HashFactor;
+	unsigned long Version;
+	unsigned long Size;
+	unsigned long Flags;
+	unsigned long Count;
+	unsigned long EntryOffset;
+	unsigned long HashOffset;
+	unsigned long HashFactor;
 } API_SET_NAMESPACE, * PAPI_SET_NAMESPACE;
 
-void save_cpu_state ( KUBERA& ctx, CONTEXT& context ) {
+void save_cpu_state ( KUBERA& ctx, windows::CONTEXT& context ) {
 	if ( ( context.ContextFlags & CONTEXT_DEBUG_REGISTERS ) == CONTEXT_DEBUG_REGISTERS ) {
 		context.Dr0 = ctx.get_reg ( Register::DR0 );
 		context.Dr1 = ctx.get_reg ( Register::DR1 );
@@ -67,9 +65,9 @@ void save_cpu_state ( KUBERA& ctx, CONTEXT& context ) {
 
 	if ( ( context.ContextFlags & CONTEXT_FLOATING_POINT ) == CONTEXT_FLOATING_POINT ) {
 		auto& fpu = ctx.get_fpu ( );
-		context.FltSave.ControlWord = fpu.fpu_control_word.value;
-		context.FltSave.StatusWord = fpu.fpu_status_word.value;
-		context.FltSave.TagWord = static_cast< BYTE >( fpu.fpu_tag_word.value );
+		context.DUMMYUNIONNAME.FltSave.ControlWord = fpu.fpu_control_word.value;
+		context.DUMMYUNIONNAME.FltSave.StatusWord = fpu.fpu_status_word.value;
+		context.DUMMYUNIONNAME.FltSave.TagWord = static_cast< unsigned char >( fpu.fpu_tag_word.value );
 		for ( int i = 0; i < 8; i++ ) {
 
 		}
@@ -101,7 +99,7 @@ void setup_context ( KUBERA& ctx, uint64_t start_address ) {
 	fpu.fpu_status_word = windows::fpu_status_word;
 	fpu.fpu_control_word = windows::fpu_control_word;
 
-	CONTEXT winctx {};
+	windows::CONTEXT winctx {};
 	winctx.ContextFlags = CONTEXT_ALL;
 
 	ctx.unalign_stack ( );
@@ -111,8 +109,8 @@ void setup_context ( KUBERA& ctx, uint64_t start_address ) {
 	winctx.Rcx = start_address;
 	winctx.Rdx = 0;
 
-	CONTEXT* winctx_stack = ctx.allocate_on_stack<CONTEXT> ( );
-	memcpy ( ctx.get_virtual_memory ( )->translate ( reinterpret_cast< uint64_t >( winctx_stack ), PageProtection::READ ), &winctx, sizeof ( CONTEXT ) );
+	windows::CONTEXT* winctx_stack = ctx.allocate_on_stack<windows::CONTEXT> ( );
+	memcpy ( ctx.get_virtual_memory ( )->translate ( reinterpret_cast< uint64_t >( winctx_stack ), PageProtection::READ ), &winctx, sizeof ( windows::CONTEXT ) );
 	ctx.unalign_stack ( );
 
 	ctx.rip ( ) = windows::ldr_initialize_thunk;
@@ -143,15 +141,11 @@ int main ( ) {
 	windows::setup_fake_teb ( ctx );
 	windows::setup_user_shared_data ( ctx );
 
-	char buf [ 128 ] { 0 };
-
-	GetCurrentDirectoryA ( sizeof ( buf ), buf );
-	std::println ( "{}", buf );
 	setup_context ( ctx, mm.get_entry_point ( "D:\\binsnake\\kubera\\emu.exe" ) );
 
-	std::println ( "ntdll base: {:#x}", ( uint64_t ) windows::emu_module );
+	std::println ( "ntdll base: {:#x}", ( uint64_t ) windows::ntdll );
 	auto vm = ctx.get_virtual_memory ( );
-	std::println ( "ntdll base real: {:#x}", ( uint64_t ) vm->translate ( ( uint64_t ) windows::emu_module, PageProtection::READ ) );
+	std::println ( "ntdll base real: {:#x}", ( uint64_t ) vm->translate ( ( uint64_t ) windows::ntdll, PageProtection::READ ) );
 
 	auto print_changes = [ ] ( const std::vector<std::string>& changes )
 	{
@@ -163,6 +157,7 @@ int main ( ) {
 		}
 		std::println ( "" );
 	};
+
 	while ( true ) {
 		auto real_instruction_rip = ( uint64_t ) vm->translate ( ctx.rip ( ), PageProtection::READ );
 		auto old_regs = ctx.register_dump ( );

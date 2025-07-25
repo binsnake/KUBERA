@@ -42,7 +42,7 @@ constexpr uint32_t STATUS_BUFFER_TOO_SMALL = 0xC0000023L;
 
 void NtCreateEvent ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 	auto* vm = ctx.get_virtual_memory ( );
-	auto* attributes = reinterpret_cast< windows::_OBJECT_ATTRIBUTES* >( vm->translate_bypass ( ARG3 ( ctx ) ) );
+	auto* attributes = ARG3(ctx) != 0 ? reinterpret_cast< windows::_OBJECT_ATTRIBUTES* >( vm->translate_bypass ( ARG3 ( ctx ) ) ) : nullptr;
 	std::u16string name;
 	if ( attributes ) {
 		if ( attributes->ObjectName ) {
@@ -153,8 +153,8 @@ void NtQueryInformationProcess ( uint32_t syscall_id, kubera::KUBERA& ctx ) {
 	}
 
 	switch ( ARG2 ( ctx ) ) {
-		case 7: // DebugPort
-		case 23: // DeviceMap
+		case ProcessDebugPort: // DebugPort
+		case ProcessDeviceMap: // DeviceMap
 		{
 			ctx.get_virtual_memory ( )->write ( ARG3 ( ctx ), 0 );
 			break;
