@@ -66,7 +66,12 @@ Contributions are welcome! Please follow the naming conventions and formatting s
 ## Similar projects
 
 https://github.com/icicle-emu/icicle-emu - Icicle is an emulator written in Rust
+
 https://github.com/unicorn-engine/unicorn
+
+https://github.com/momo5502/sogen - User-space emulator using Icicle/Emulator. This has been a great inspiration for KUBERA's Windows emulator and some strategies were used as a reference. Make sure to check it out!
+
+https://github.com/x86matthew/WinVisor
 
 ## Usage Disclaimer
 
