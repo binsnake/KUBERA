@@ -360,6 +360,7 @@ void map_syscalls ( ) {
 			static_cast< BOOLEAN >( ARG5 ( ctx ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtManageHotPatch" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtManageHotPatch (
@@ -369,6 +370,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PVOID >( TRANSLATE ( ARG4 ( ctx ), PageProtection::READ ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtQueryVirtualMemory" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtQueryVirtualMemory (
@@ -380,6 +382,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PSIZE_T >( TRANSLATE ( ARG6 ( ctx ), PageProtection::READ | PageProtection::WRITE ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtAccessCheck" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtAccessCheck (
@@ -393,6 +396,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PBOOLEAN >( TRANSLATE ( GET_RSP ( ctx ) + 0x40, PageProtection::READ | PageProtection::WRITE ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtQueryInformationProcess" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtQueryInformationProcess (
@@ -403,6 +407,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PULONG >( TRANSLATE ( ARG5 ( ctx ), PageProtection::READ | PageProtection::WRITE ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtTerminateProcess" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtTerminateProcess (
@@ -410,6 +415,7 @@ void map_syscalls ( ) {
 			static_cast< NTSTATUS >( ARG2 ( ctx ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtQueryPerformanceCounter" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtQueryPerformanceCounter (
@@ -417,6 +423,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PLARGE_INTEGER >( TRANSLATE ( ARG2 ( ctx ), PageProtection::READ | PageProtection::WRITE ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtProtectVirtualMemory" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtProtectVirtualMemory (
@@ -427,6 +434,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PULONG >( TRANSLATE ( ARG5 ( ctx ), PageProtection::READ | PageProtection::WRITE ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtQuerySystemInformation" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtQuerySystemInformation (
@@ -436,6 +444,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PULONG >( TRANSLATE ( ARG4 ( ctx ), PageProtection::READ | PageProtection::WRITE ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtTraceEvent" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtTraceEvent (
@@ -445,6 +454,7 @@ void map_syscalls ( ) {
 			reinterpret_cast< PVOID >( TRANSLATE ( ARG4 ( ctx ), PageProtection::READ ) )
 		) );
 	};
+
 	handler_map [ syscall_map [ "NtSetInformationProcess" ] ] = [ ] ( uint32_t, kubera::KUBERA& ctx )
 	{
 		SET_RETURN ( ctx, NtSetInformationProcess (
