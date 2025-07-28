@@ -2,12 +2,6 @@
 #ifndef __ICED_DEF
 #define __ICED_DEF
 
-/* Required links if you're not using cmake (and on Windows) */
-#pragma comment(lib, "ws2_32")
-#pragma comment(lib, "ntdll")
-#pragma comment(lib, "userenv")
-#pragma comment(lib, "Iced_Wrapper.lib")
-
 /* DEFINES */
 #define ICED_USE_STD_STRING // Wrappers will include a std::string_view instead of a char*
 

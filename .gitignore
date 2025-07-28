@@ -407,3 +407,4 @@ FodyWeavers.xsd
 *.til
 *.i64
 *.exe
+/build
