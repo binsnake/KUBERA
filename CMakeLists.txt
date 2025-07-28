@@ -5,11 +5,13 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Collect header files
 file(GLOB HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
 )
 
+# Source files
 set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/kubera.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/virtual_memory.cpp
@@ -34,12 +36,19 @@ set(SOURCES
 
 message(STATUS "Found sources: ${SOURCES}")
 
-add_library(${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS})
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# Add the icedpp subdirectory
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/deps/icedpp)
 
+# Define the KUBERA static library
+add_library(${PROJECT_NAME} STATIC ${SOURCES} ${HEADERS})
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/boost_multiprecision/include
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/boost_config/include
 )
+
+# Link icedpp to KUBERA
+target_link_libraries(${PROJECT_NAME} PUBLIC icedpp)
+
+# Compiler definitions
 target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_MP_STANDALONE)

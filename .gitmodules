@@ -4,3 +4,6 @@
 [submodule "deps/boost_config"]
 	path = deps/boost_config
 	url = https://github.com/boostorg/config
+[submodule "deps/icedpp"]
+	path = deps/icedpp
+	url = https://github.com/binsnake/icedpp
