@@ -28,20 +28,6 @@ constexpr uint32_t STATUS_OBJECT_NAME_EXISTS = 0x40000000L;
 constexpr uint32_t STATUS_BUFFER_TOO_SMALL = 0xC0000023L;
 constexpr uint32_t STATUS_INVALID_HANDLE = 0xC0000008L;
 
-// Template suggestion for pointer translation (not implemented)
-template<typename T>
-concept PointerType = std::is_pointer_v<T>;
-
-template<PointerType T>
-T translate_pointer ( uint64_t arg ) {
-	if ( arg == 0 ) return nullptr;
-	return reinterpret_cast< T >( kubera::memory->translate ( arg, PageProtection::READ | PageProtection::WRITE ) );
-}
-
-// Central dispatcher type
-using SyscallHandler = void( * )( uint32_t, kubera::KUBERA& );
-
-// Handler definitions in Windows NT API format
 namespace windows
 {
 	NTSTATUS NtCreateEvent (
