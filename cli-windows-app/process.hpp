@@ -10,6 +10,7 @@
 #include <expected>
 #include <cstdint>
 #include <string>
+#include "wintypes.hpp"
 #include "module_manager.hpp"
 #include "handle_registry.hpp"
 
@@ -35,23 +36,8 @@ namespace process
     };
   };
 
-#pragma pack(push, 1)
-  struct handle_value {
-    uint64_t id : 32;
-    uint64_t type : 16;
-    uint64_t padding : 14;
-    uint64_t is_system : 1;
-    uint64_t is_pseudo : 1;
-  };
-#pragma pack(pop)
-
-  static_assert( sizeof ( handle_value ) == 8 );
-
-  union handle {
-    handle_value value;
-    uint64_t bits;
-    std::uint64_t h;
-  };
+  using handle = windows::HANDLE;
+	using handle_value = windows::handle_value;
 
   inline bool operator==( const handle& h1, const handle& h2 ) {
     return h1.bits == h2.bits;
@@ -294,17 +280,12 @@ namespace process
     }
   };
 
-  typedef enum _EVENT_TYPE {
-    NotificationEvent,
-    SynchronizationEvent
-  } EVENT_TYPE;
-
   struct WinEvent : public ReferencedObject {
     std::u16string name;
-    EVENT_TYPE type;
+    windows::EVENT_TYPE type;
     bool signaled;
 
-    WinEvent ( std::u16string n, EVENT_TYPE t, bool sig = false )
+    WinEvent ( std::u16string n, windows::EVENT_TYPE t, bool sig = false )
       : name ( std::move ( n ) ), type ( t ), signaled ( sig ) { }
   };
 

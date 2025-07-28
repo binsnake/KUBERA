@@ -36,11 +36,12 @@ namespace kubera
 
 	// Pointer to the instruction dispatch table
 	inline std::unique_ptr<InstructionHandlerList> instruction_dispatch_table = nullptr;
+	// Memory Management Unit
+	inline std::unique_ptr<VirtualMemory> memory = nullptr;
 
 	class KUBERA {
 	private:
 		std::unique_ptr<CPU> cpu = nullptr;
-		std::unique_ptr<VirtualMemory> memory = nullptr;
 		uint8_t instr_buffer [ 15 ] = { 0 };
 
 	public:

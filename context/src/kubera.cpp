@@ -636,7 +636,9 @@ void map_handlers ( ) {
 }
 
 KUBERA::KUBERA ( ) {
-	memory = std::make_unique<VirtualMemory> ( );
+	if ( !memory ) {
+		memory = std::make_unique<VirtualMemory> ( );
+	}
 	const uint64_t stack_addr = memory->alloc_at ( 0xDEADBEEF00000000, 0x200000, PageProtection::READ | PageProtection::WRITE );
 	cpu = std::make_unique<CPU> ( stack_addr, 0x200000 );
 	decoder = std::make_unique<iced::Decoder> ( );

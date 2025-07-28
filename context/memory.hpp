@@ -34,8 +34,8 @@ namespace kubera
 		template<typename T> void write ( uint64_t addr, T val );
 		void read_bytes ( uint64_t addr, void* dest, std::size_t size, uint8_t access = PageProtection::READ );
 		void write_bytes ( uint64_t addr, const void* src, std::size_t size, uint8_t access = PageProtection::WRITE );
-		[[nodiscard]] void* translate ( uint64_t addr, uint8_t access );
-		[[nodiscard]] void* translate_bypass ( uint64_t addr );
+		[[nodiscard]] void* translate ( uint64_t addr, uint8_t access, bool silent = false );
+		[[nodiscard]] void* translate_bypass ( uint64_t addr, bool silent = false );
 		[[nodiscard]] bool check ( uint64_t addr, std::size_t size, uint8_t access );
 
 		std::size_t page_size;

@@ -74,6 +74,21 @@ namespace windows
 	typedef unsigned long long DWORD64;
 	typedef unsigned short USHORT;
 
+	typedef long NTSTATUS;
+	typedef void* PVOID;
+	typedef unsigned long long SIZE_T;
+	typedef unsigned long long* PSIZE_T;
+	typedef unsigned int ACCESS_MASK;
+	typedef unsigned int* PACCESS_MASK;
+	typedef bool BOOLEAN;
+	typedef bool* PBOOLEAN;
+	typedef unsigned long* PULONG;
+	typedef long* PLONG;
+	typedef enum _EVENT_TYPE {
+		NotificationEvent,
+		SynchronizationEvent
+	} EVENT_TYPE;
+
 	union ULARGE_INTEGER {
 		struct {
 			ULONG LowPart;
@@ -97,6 +112,9 @@ namespace windows
 		} u;
 		LONGLONG QuadPart;
 	};
+
+	typedef LARGE_INTEGER* PLARGE_INTEGER;
+
 	struct CLIENT_ID64 {
 		ULONGLONG UniqueProcess;                                                //0x0
 		ULONGLONG UniqueThread;                                                 //0x8
@@ -121,20 +139,20 @@ namespace windows
 		USHORT Reserved [ 3 ];                                                     //0xa
 	};
 
-	struct _UNICODE_STRING {
+	typedef struct _UNICODE_STRING {
 		USHORT Length;                                                          //0x0
 		USHORT MaximumLength;                                                   //0x2
 		char16_t* Buffer;                                                          //0x8
-	};
+	} *PUNICODE_STRING;
 
-	struct _OBJECT_ATTRIBUTES {
+	typedef struct _OBJECT_ATTRIBUTES {
 		ULONG Length;                                                           //0x0
 		void* RootDirectory;                                                    //0x8
 		_UNICODE_STRING* ObjectName;                                     //0x10
 		ULONG Attributes;                                                       //0x18
 		void* SecurityDescriptor;                                               //0x20
 		void* SecurityQualityOfService;                                         //0x28
-	};
+	} *POBJECT_ATTRIBUTES;
 
 	struct _CURDIR {
 		_UNICODE_STRING DosPath;                                         //0x0
@@ -152,10 +170,10 @@ namespace windows
 		_STRING DosPath;                                                 //0x8
 	};
 
-	struct _LIST_ENTRY {
+	typedef struct _LIST_ENTRY {
 		ULONGLONG Flink;                                                        //0x0
 		ULONGLONG Blink;                                                        //0x8
-	};
+	} *PLIST_ENTRY;
 
 	struct _PEB_LDR_DATA {
 		ULONG Length;                                                           //0x0
@@ -842,4 +860,7 @@ namespace windows
 		ULONGLONG ActiveProcessorsAffinityMask;
 		char NumberOfProcessors;
 	} SYSTEM_BASIC_INFORMATION, * PSYSTEM_BASIC_INFORMATION;
+
+
+	typedef uint64_t* PHANDLE;
 };
