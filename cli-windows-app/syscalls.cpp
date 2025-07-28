@@ -475,6 +475,39 @@ void syscall_handlers::init<false> ( ) {
 	map_syscalls ( );
 }
 
+void syscall_handlers::dispatcher ( const iced::Instruction& instr, KUBERA& ctx ) {
+	const auto syscall_id = ctx.get_reg_internal<KubRegister::RAX, Register::EAX, uint32_t> ( );
+	if ( handler_map.contains ( syscall_id ) ) {
+		handler_map [ syscall_id ] ( syscall_id, ctx );
+	}
+}
+
+void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kubera::KUBERA& ctx ) {
+	const auto syscall_id = ctx.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( );
+	const auto handler_available = handler_map.contains ( syscall_id );
+	const auto has_name = handler_name_map.contains ( syscall_id );
+	if ( handler_available && has_name ) {
+		std::println ( "[syscall - {}] {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}",
+				handler_name_map [ syscall_id ], ARG1 ( ctx ), ARG2 ( ctx ), ARG3 ( ctx ), ARG4 ( ctx ), ARG5 ( ctx ), ARG6 ( ctx ) );
+	}
+
+	if ( handler_available ) {
+		handler_map [ syscall_id ] ( syscall_id, ctx );
+		std::println ( "\t\t-> {:#X}", ctx.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( ) );
+	}
+	else {
+		if ( has_name ) {
+			std::println ( "[syscall - {}] No handler! {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}",
+					handler_name_map [ syscall_id ], ARG1 ( ctx ), ARG2 ( ctx ), ARG3 ( ctx ), ARG4 ( ctx ), ARG5 ( ctx ), ARG6 ( ctx ) );
+		}
+		else {
+			std::println ( "[syscall - {:#x}] No handler! {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}",
+					syscall_id, ARG1 ( ctx ), ARG2 ( ctx ), ARG3 ( ctx ), ARG4 ( ctx ), ARG5 ( ctx ), ARG6 ( ctx ) );
+		}
+		__debugbreak ( );
+	}
+}
+
 void syscall_handlers::build_syscall_map ( kubera::KUBERA& ctx, ModuleManager& mm ) {
 	const char* mods [ ] = { "C:\\Windows\\System32\\ntdll.dll", "C:\\Windows\\System32\\win32u.dll" };
 	for ( const auto& mod : mods ) {
@@ -510,38 +543,5 @@ void syscall_handlers::build_syscall_map ( kubera::KUBERA& ctx, ModuleManager& m
 				handler_name_map [ idx ] = name;
 			}
 		}
-	}
-}
-
-void syscall_handlers::dispatcher ( const iced::Instruction& instr, KUBERA& ctx ) {
-	const auto syscall_id = ctx.get_reg_internal<KubRegister::RAX, Register::EAX, uint32_t> ( );
-	if ( handler_map.contains ( syscall_id ) ) {
-		handler_map [ syscall_id ] ( syscall_id, ctx );
-	}
-}
-
-void syscall_handlers::dispatcher_verbose ( const iced::Instruction& instr, kubera::KUBERA& ctx ) {
-	const auto syscall_id = ctx.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( );
-	const auto handler_available = handler_map.contains ( syscall_id );
-	const auto has_name = handler_name_map.contains ( syscall_id );
-	if ( handler_available && has_name ) {
-		std::println ( "[syscall - {}] {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}",
-				handler_name_map [ syscall_id ], ARG1 ( ctx ), ARG2 ( ctx ), ARG3 ( ctx ), ARG4 ( ctx ), ARG5 ( ctx ), ARG6 ( ctx ) );
-	}
-
-	if ( handler_available ) {
-		handler_map [ syscall_id ] ( syscall_id, ctx );
-		std::println ( "\t\t-> {:#X}", ctx.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( ) );
-	}
-	else {
-		if ( has_name ) {
-			std::println ( "[syscall - {}] No handler! {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}",
-					handler_name_map [ syscall_id ], ARG1 ( ctx ), ARG2 ( ctx ), ARG3 ( ctx ), ARG4 ( ctx ), ARG5 ( ctx ), ARG6 ( ctx ) );
-		}
-		else {
-			std::println ( "[syscall - {:#x}] No handler! {:#x} {:#x} {:#x} {:#x} {:#x} {:#x}",
-					syscall_id, ARG1 ( ctx ), ARG2 ( ctx ), ARG3 ( ctx ), ARG4 ( ctx ), ARG5 ( ctx ), ARG6 ( ctx ) );
-		}
-		__debugbreak ( );
 	}
 }
