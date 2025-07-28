@@ -1,6 +1,3 @@
-[submodule "deps/linux-pe"]
-	path = deps/linux-pe
-	url = https://github.com/can1357/linux-pe
 [submodule "deps/boost_multiprecision"]
 	path = deps/boost_multiprecision
 	url = https://github.com/boostorg/multiprecision
