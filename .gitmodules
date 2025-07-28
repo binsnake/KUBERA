@@ -4,3 +4,6 @@
 [submodule "deps/boost_multiprecision"]
 	path = deps/boost_multiprecision
 	url = https://github.com/boostorg/multiprecision
+[submodule "deps/boost_config"]
+	path = deps/boost_config
+	url = https://github.com/boostorg/config
