@@ -19,7 +19,7 @@ using namespace kubera;
 #define ARG6(ctx) *(uint64_t*)(TRANSLATE(GET_RSP(ctx) + 0x30, PageProtection::READ))
 #define SET_RETURN(ctx, value) ctx.set_reg_internal<KubRegister::RAX, Register::RAX, uint64_t>(value)
 
-constexpr uint64_t CURRENT_PROCESS = ~0ULL;
+constexpr windows::HANDLE CURRENT_PROCESS = process::make_handle ( ~0ULL );
 constexpr uint32_t STATUS_SUCCESS = 0x0;
 constexpr uint32_t STATUS_NOT_SUPPORTED = 0xC00000BBL;
 constexpr uint32_t STATUS_INVALID_PAGE_PROTECTION = 0xC0000018L;
@@ -99,7 +99,7 @@ namespace windows
 			SIZE_T MemoryInformationLength,
 			PSIZE_T ReturnLength
 	) {
-		if ( ProcessHandle.bits != CURRENT_PROCESS ) {
+		if ( ProcessHandle != CURRENT_PROCESS ) {
 			std::println ( "[syscall - NtQueryVirtualMemory] Attempted on foreign process" );
 			return STATUS_NOT_SUPPORTED;
 		}
@@ -159,7 +159,7 @@ namespace windows
 			ULONG ProcessInformationLength,
 			PULONG ReturnLength
 	) {
-		if ( ProcessHandle.bits != CURRENT_PROCESS ) {
+		if ( ProcessHandle != CURRENT_PROCESS ) {
 			std::println ( "[syscall - NtQueryInformationProcess] Attempted on foreign process" );
 			return STATUS_NOT_SUPPORTED;
 		}
@@ -202,7 +202,7 @@ namespace windows
 			HANDLE ProcessHandle,
 			NTSTATUS ExitStatus
 	) {
-		if ( ProcessHandle.bits != CURRENT_PROCESS ) {
+		if ( ProcessHandle != CURRENT_PROCESS ) {
 			std::println ( "[syscall - NtTerminateProcess] Attempted on foreign process" );
 			return STATUS_NOT_SUPPORTED;
 		}
@@ -234,7 +234,7 @@ namespace windows
 			ULONG NewAccessProtection,
 			PULONG OldAccessProtection
 	) {
-		if ( ProcessHandle.bits != CURRENT_PROCESS ) {
+		if ( ProcessHandle != CURRENT_PROCESS ) {
 			std::println ( "[syscall - NtProtectVirtualMemory] Attempted on foreign process" );
 			return STATUS_NOT_SUPPORTED;
 		}
@@ -326,23 +326,24 @@ namespace windows
 			PVOID ProcessInformation,
 			ULONG ProcessInformationLength
 	) {
-		if ( ProcessHandle.bits != CURRENT_PROCESS ) {
+		if ( ProcessHandle != CURRENT_PROCESS ) {
 			std::println ( "[syscall - NtSetInformationProcess] Attempted on foreign process" );
 			return STATUS_NOT_SUPPORTED;
 		}
 
-		if ( ProcessInformationClass == ProcessSchedulerSharedData ||
-				ProcessInformationClass == ProcessConsoleHostProcess ||
-				ProcessInformationClass == ProcessFaultInformation ||
-				ProcessInformationClass == ProcessDefaultHardErrorMode ||
-				ProcessInformationClass == ProcessRaiseUMExceptionOnInvalidHandleClose ||
-				ProcessInformationClass == ProcessDynamicFunctionTableInformation ||
-				ProcessInformationClass == ProcessPriorityBoost ) {
-			return STATUS_SUCCESS;
+		switch ( ProcessInformationClass ) {
+			case ProcessSchedulerSharedData:
+			case ProcessConsoleHostProcess:
+			case ProcessFaultInformation:
+			case ProcessDefaultHardErrorMode:
+			case ProcessRaiseUMExceptionOnInvalidHandleClose:
+			case ProcessDynamicFunctionTableInformation:
+			case ProcessPriorityBoost:
+				return STATUS_SUCCESS;
+			default:
+				std::println( "[syscall - NtSetInformationProcess] Unsupported class {:#x}", static_cast< uint32_t >( ProcessInformationClass ) );
+				return STATUS_NOT_SUPPORTED;
 		}
-
-		std::println ( "unsupported" );
-		return STATUS_NOT_SUPPORTED;
 	}
 }
 

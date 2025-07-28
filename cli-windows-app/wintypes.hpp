@@ -864,3 +864,11 @@ namespace windows
 
 	typedef uint64_t* PHANDLE;
 };
+
+inline bool operator==( const windows::HANDLE& lhs, const windows::HANDLE& rhs ) {
+	return lhs.bits == rhs.bits;
+}
+
+inline bool operator!=( const windows::HANDLE& lhs, const windows::HANDLE& rhs ) {
+	return lhs.bits != rhs.bits;
+}
