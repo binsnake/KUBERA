@@ -26,6 +26,7 @@ mp::number<mp::cpp_bin_float<
 >, mp::et_off>;       // Disable expression templates for simplicity
 #if defined(_MSC_VER)
 #include <intrin.h>
+#include <iced.hpp>
 #define READ_TSC() __rdtsc()
 #elif defined(__GNUC__) || defined(__clang__)
 #if defined(__x86_64__) || defined(__i386__)
@@ -114,7 +115,7 @@ namespace kubera
 				case 5: fpu_tag_word.TAG5 = tag; break;
 				case 6: fpu_tag_word.TAG6 = tag; break;
 				case 7: fpu_tag_word.TAG7 = tag; break;
-				default: __assume ( false );
+				default: UNREACHABLE ( );
 			}
 		}
 
@@ -128,7 +129,7 @@ namespace kubera
 				case 5: return fpu_tag_word.TAG5;
 				case 6: return fpu_tag_word.TAG6;
 				case 7: return fpu_tag_word.TAG7;
-				default: __assume ( false );
+				default: UNREACHABLE ( );
 			}
 		}
 
