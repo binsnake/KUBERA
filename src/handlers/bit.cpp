@@ -2,6 +2,37 @@
 #include <bit>
 #include "helpers.hpp"
 
+#include <stdint.h>
+
+#ifdef _MSC_VER
+#include <stdlib.h>
+#define bswap32(x) _byteswap_ulong(x)
+#define bswap64(x) _byteswap_uint64(x)
+#elif defined(__GNUC__) || defined(__clang__)
+#define bswap32(x) __builtin_bswap32(x)
+#define bswap64(x) __builtin_bswap64(x)
+#else
+// Fallback implementation
+static inline uint32_t bswap32 ( uint32_t x ) {
+	return ( ( x & 0xFF000000u ) >> 24 ) |
+		( ( x & 0x00FF0000u ) >> 8 ) |
+		( ( x & 0x0000FF00u ) << 8 ) |
+		( ( x & 0x000000FFu ) << 24 );
+}
+
+static inline uint64_t bswap64 ( uint64_t x ) {
+	return ( ( x & 0xFF00000000000000ull ) >> 56 ) |
+		( ( x & 0x00FF000000000000ull ) >> 40 ) |
+		( ( x & 0x0000FF0000000000ull ) >> 24 ) |
+		( ( x & 0x000000FF00000000ull ) >> 8 ) |
+		( ( x & 0x00000000FF000000ull ) << 8 ) |
+		( ( x & 0x0000000000FF0000ull ) << 24 ) |
+		( ( x & 0x000000000000FF00ull ) << 40 ) |
+		( ( x & 0x00000000000000FFull ) << 56 );
+}
+#endif
+
+
 using namespace kubera;
 
 inline int find_highest_bit ( uint64_t value ) {
@@ -126,8 +157,8 @@ void handlers::popcnt ( const iced::Instruction& instr, KUBERA& context ) {
 void handlers::bswap ( const iced::Instruction& instr, KUBERA& context ) {
 	const size_t op_size = instr.op0_size ( );
 	uint64_t val = helpers::get_operand_value<uint64_t> ( instr, 0u, context );
-	if ( op_size == 4 ) val = _byteswap_ulong ( static_cast< uint32_t >( val ) );
-	else if ( op_size == 8 ) val = _byteswap_uint64 ( val );
+	if ( op_size == 4 ) val = bswap32 ( static_cast< uint32_t >( val ) );
+	else if ( op_size == 8 ) val = bswap64 ( val );
 
 	helpers::set_operand_value<uint64_t> ( instr, 0u, val, context );
 }
@@ -258,9 +289,9 @@ void handlers::bsf ( const iced::Instruction& instr, KUBERA& context ) {
 	else {
 		flags.ZF = 0;
 		unsigned long index = 0;
-		if ( op_size == 8 ) _BitScanForward64 ( &index, val );
-		else if ( op_size == 4 ) _BitScanForward ( &index, static_cast< uint32_t >( val ) );
-		else if ( op_size == 2 ) _BitScanForward ( &index, static_cast< uint16_t >( val ) );
+		if ( op_size == 8 ) index = find_highest_bit ( val );
+		else if ( op_size == 4 ) index = find_highest_bit ( static_cast< uint32_t >( val ) );
+		else if ( op_size == 2 ) index = find_highest_bit ( static_cast< uint16_t >( val ) );
 		helpers::set_operand_value<uint64_t> ( instr, 0u, static_cast< uint64_t >( index ), context );
 	}
 }
