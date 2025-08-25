@@ -1,5 +1,5 @@
 #include "../memory.hpp"
-
+#include <memory>
 namespace kubera
 {
 	VirtualMemory::VirtualMemory ( std::size_t ps ) : page_size ( ps ) {
@@ -24,12 +24,20 @@ namespace kubera
 	}
 
 	uint8_t* VirtualMemory::commit ( std::size_t size ) {
+	#ifdef _MSC_VER
 		return reinterpret_cast< uint8_t* >( _aligned_malloc ( size, PAGE_ALIGN ) );
+	#else
+		return reinterpret_cast< uint8_t* >( std::aligned_alloc ( size, PAGE_ALIGN ) );
+	#endif
 	}
 
 	void VirtualMemory::uncommit ( uint8_t* data ) {
 		if ( data ) {
+		#ifdef _MSC_VER
 			_aligned_free ( data );
+		#else
+			free ( data );
+		#endif
 		}
 	}
 
