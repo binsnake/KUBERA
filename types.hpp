@@ -45,6 +45,14 @@ static inline uint64_t READ_TSC ( ) {
 #define READ_TSC() get_timestamp() // fallback to time-based
 #endif
 #endif
+
+#ifndef UNREACHABLE
+#ifdef _MSC_VER
+#define UNREACHABLE() __assume(0)
+#else
+#define UNREACHABLE() __builtin_unreachable()
+#endif
+#endif
 namespace kubera
 {
 	enum KubRegister {
