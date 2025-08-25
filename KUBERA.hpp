@@ -137,7 +137,7 @@ namespace kubera
 			rip ( ) = new_rip;
 			std::size_t bytes_fetched = fetch_instruction_bytes ( new_rip, instr_buffer, 15 );
 			if ( bytes_fetched == 0 ) {
-				DBGBREAK ( ); // std::breakpoint is C++26 only :/
+				std::println ( "!!!!! FAILED TO FETCH INSTRUCTIONS" );
 			}
 			decoder->reconfigure ( instr_buffer, bytes_fetched, new_rip );
 		}
