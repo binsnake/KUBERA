@@ -307,9 +307,23 @@ void handlers::cpuid ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint32_t eax_in = context.get_reg_internal<KubRegister::RAX, Register::RAX, uint32_t> ( );
 	const uint32_t ecx_in = context.get_reg_internal<KubRegister::RCX, Register::RCX, uint32_t> ( );
 
-	std::array<int, 4> cpu_info;
-	__cpuidex ( cpu_info.data ( ), eax_in, ecx_in );
 	// !TODO(isolation)
+	// !TODO(PRIORITY)
+	std::array<int, 4> cpu_info;
+#if defined(__x86_64__) || defined(__i386__) || defined(_M_X64)
+#ifdef _MSC_VER
+	__cpuidex ( cpu_info.data ( ), eax_in, ecx_in );
+#else
+	__asm__ __volatile__ (
+			"cpuid"
+			: "=a"( cpu_info [ 0 ] ), "=b"( cpu_info [ 1 ] ), "=c"( cpu_info [ 2 ] ), "=d"( cpu_info [ 3 ] )
+			: "a"( eax_in ), "c"( ecx_in )
+	);
+#endif
+#else
+	throw std::runtime_error ( "CPUID emulation not available for non-x86 platforms" );
+#endif
+
 	context.set_reg_internal<KubRegister::RAX, Register::RAX> ( cpu_info [ 0 ] );
 	context.set_reg_internal<KubRegister::RBX, Register::RBX> ( cpu_info [ 1 ] );
 	context.set_reg_internal<KubRegister::RCX, Register::RCX> ( cpu_info [ 2 ] );
