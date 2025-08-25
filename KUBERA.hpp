@@ -20,11 +20,14 @@
 #undef max
 #endif
 
+#ifndef UNREACHABLE
 #ifdef _MSC_VER
-#define DBGBREAK() __debugbreak() 
+#define UNREACHABLE() __assume(0)
 #else
-#define DBGBREAK() __builtin_trap()
+#define UNREACHABLE() __builtin_unreachable()
 #endif
+#endif
+
 #define GET_OPERAND_MASK(y) (~0ULL >> (64 - (y) * 8))
 #define ALIGN_DOWN(var, align) var & ~(align - 1)
 
