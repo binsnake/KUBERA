@@ -24,7 +24,26 @@ mp::number<mp::cpp_bin_float<
 	void, std::int16_t, // Use 16-bit exponent type
 	-16382, 16383       // Min/Max exponent values
 >, mp::et_off>;       // Disable expression templates for simplicity
-
+#if defined(_MSC_VER)
+#include <intrin.h>
+#define READ_TSC() __rdtsc()
+#elif defined(__GNUC__) || defined(__clang__)
+#if defined(__x86_64__) || defined(__i386__)
+static inline uint64_t READ_TSC ( ) {
+	uint32_t hi, lo;
+	__asm__ __volatile__ ( "rdtsc" : "=a"( lo ), "=d"( hi ) );
+	return ( ( uint64_t ) hi << 32 ) | lo;
+}
+#elif defined(__aarch64__)
+static inline uint64_t READ_TSC ( ) {
+	uint64_t val;
+	__asm__ __volatile__ ( "mrs %0, cntvct_el0" : "=r"( val ) );
+	return val;
+}
+#else
+#define READ_TSC() get_timestamp() // fallback to time-based
+#endif
+#endif
 namespace kubera
 {
 	enum KubRegister {
@@ -147,7 +166,7 @@ namespace kubera
 		CPU ( std::uint64_t stack_base_addr, std::size_t _stack_size ) : stack_base ( stack_base_addr ), stack_size ( _stack_size ) {
 			sse_registers = std::make_unique<std::array<uint512_t, 32>> ( );
 			sse_registers->fill ( uint512_t ( 0 ) );
-			timestamp_counter = __rdtsc ( );
+			timestamp_counter = READ_TSC ( );
 		}
 
 		void increment_tsc ( std::size_t amount = 1 ) {
