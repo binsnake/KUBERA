@@ -291,6 +291,7 @@ void handlers::ldmxcsr ( const iced::Instruction& instr, KUBERA& context ) {
 /// XGETBV-Get Value of Extended Control Register
 /// Reads the specified extended control register (XCR) into EDX:EAX (high:low 32 bits).
 void handlers::xgetbv ( const iced::Instruction& instr, KUBERA& context ) {
+	// !TODO(implement)
 	throw std::runtime_error ( "xgetbv not implemented!" );
 	//const uint32_t ecx_in = context.get_reg_internal<KubRegister::RCX, Register::ECX, uint32_t> ( );
 	//const uint64_t xcr_val = _xgetbv ( ecx_in );
@@ -308,7 +309,7 @@ void handlers::cpuid ( const iced::Instruction& instr, KUBERA& context ) {
 
 	std::array<int, 4> cpu_info;
 	__cpuidex ( cpu_info.data ( ), eax_in, ecx_in );
-
+	// !TODO(isolation)
 	context.set_reg_internal<KubRegister::RAX, Register::RAX> ( cpu_info [ 0 ] );
 	context.set_reg_internal<KubRegister::RBX, Register::RBX> ( cpu_info [ 1 ] );
 	context.set_reg_internal<KubRegister::RCX, Register::RCX> ( cpu_info [ 2 ] );
