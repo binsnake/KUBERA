@@ -11,7 +11,11 @@ namespace kubera
 	VirtualMemory::~VirtualMemory ( ) {
 		for ( auto& [v, p] : pages ) {
 			if ( p->data ) {
+			#ifdef _MSC_VER
 				_aligned_free ( p->data );
+			#else
+				std::free ( p->data );
+			#endif
 			}
 		}
 	}
@@ -36,7 +40,7 @@ namespace kubera
 		#ifdef _MSC_VER
 			_aligned_free ( data );
 		#else
-			free ( data );
+			std::free ( data );
 		#endif
 		}
 	}
