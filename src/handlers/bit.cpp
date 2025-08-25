@@ -4,6 +4,18 @@
 
 using namespace kubera;
 
+inline int find_highest_bit ( uint64_t value ) {
+	if ( value == 0 ) return -1; // or handle zero case as needed
+
+#ifdef _MSC_VER
+	unsigned long index;
+	_BitScanReverse64 ( &index, value );
+	return ( int ) index;
+#else
+	return 63 - __builtin_clzll ( value );
+#endif
+}
+
 /// BZHI-Bit Zero High
 /// Zeros the high bits of the source operand starting from the index in the second operand, stores the result in the destination, and updates flags.
 void handlers::bzhi ( const iced::Instruction& instr, KUBERA& context ) {
@@ -96,7 +108,7 @@ void handlers::popcnt ( const iced::Instruction& instr, KUBERA& context ) {
 	const uint64_t src = helpers::get_operand_value<uint64_t> ( instr, 1u, context );
 	const uint64_t mask = GET_OPERAND_MASK ( op_size );
 	const uint64_t val = src & mask;
-	const uint64_t result = __popcnt64 ( val );
+	const uint64_t result = std::popcount ( val );
 
 	helpers::set_operand_value<uint64_t> ( instr, 0u, result, context );
 
@@ -205,9 +217,9 @@ void handlers::bsr ( const iced::Instruction& instr, KUBERA& context ) {
 	else {
 		flags.ZF = 0;
 		unsigned long index = 0;
-		if ( op_size == 8 ) _BitScanReverse64 ( &index, val );
-		else if ( op_size == 4 ) _BitScanReverse ( &index, static_cast< uint32_t >( val ) );
-		else if ( op_size == 2 ) _BitScanReverse ( &index, static_cast< uint16_t >( val ) );
+		if ( op_size == 8 ) index = find_highest_bit ( val );
+		else if ( op_size == 4 ) index = find_highest_bit ( static_cast< uint32_t >( val ) );
+		else if ( op_size == 2 ) index = find_highest_bit ( static_cast< uint16_t >( val ) );
 
 		helpers::set_operand_value<uint64_t> ( instr, 0u, static_cast< uint64_t >( index ), context );
 	}

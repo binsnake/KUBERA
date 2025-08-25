@@ -235,10 +235,14 @@ void map_avx ( ) {
 
 inline int countl_zero_u64 ( uint64_t val ) {
 	unsigned long leading_zero;
+#ifdef _MSC_VER
 	if ( _BitScanReverse64 ( &leading_zero, val ) )
 		return 63 - leading_zero;
 	else
 		return 64;
+#else
+	return __builtin_clzll ( val );
+#endif
 }
 
 float80_t from_ieee754_80 ( std::pair<uint64_t, uint16_t> bits ) {
