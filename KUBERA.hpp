@@ -20,6 +20,11 @@
 #undef max
 #endif
 
+#ifdef _MSC_VER
+#define DBGBREAK() __debugbreak() 
+#else
+#define DBGBREAK() __builtin_trap()
+#endif
 #define GET_OPERAND_MASK(y) (~0ULL >> (64 - (y) * 8))
 #define ALIGN_DOWN(var, align) var & ~(align - 1)
 
@@ -132,7 +137,7 @@ namespace kubera
 			rip ( ) = new_rip;
 			std::size_t bytes_fetched = fetch_instruction_bytes ( new_rip, instr_buffer, 15 );
 			if ( bytes_fetched == 0 ) {
-				__debugbreak ( );
+				DBGBREAK ( ); // std::breakpoint is C++26 only :/
 			}
 			decoder->reconfigure ( instr_buffer, bytes_fetched, new_rip );
 		}
