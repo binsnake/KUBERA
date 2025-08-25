@@ -141,7 +141,6 @@ void imul_handler<1> ( const iced::Instruction& instr, KUBERA& context ) {
 	const size_t op_size = instr.op0_size ( );
 	const int64_t src_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 0u, context ) );
 	const uint64_t mask = GET_OPERAND_MASK ( op_size );
-
 	Register low_reg, high_reg;
 	switch ( op_size ) {
 		case 1: low_reg = Register::AL; high_reg = Register::AH; break;
@@ -150,19 +149,20 @@ void imul_handler<1> ( const iced::Instruction& instr, KUBERA& context ) {
 		case 8: low_reg = Register::RAX; high_reg = Register::RDX; break;
 		default: UNREACHABLE ( );
 	}
-
 	const int64_t acc_val = static_cast< int64_t >( context.get_reg ( low_reg, op_size ) );
 	const int128_t full_res = static_cast< int128_t >( acc_val ) * static_cast< int128_t >( src_val );
-
 	const uint64_t low_res = static_cast< uint64_t >( full_res );
 	const uint64_t high_res = static_cast< uint64_t >( full_res >> ( op_size * 8 ) );
-
 	context.set_reg ( low_reg, low_res, op_size );
 	context.set_reg ( high_reg, high_res, op_size );
-
 	auto& flags = context.get_flags ( );
 	const int64_t sext_low = SIGN_EXTEND ( low_res & mask, op_size );
 	flags.CF = flags.OF = !( sext_low == static_cast< int64_t >( full_res ) );
+	// unofficial but well-defined
+	flags.SF = ( low_res & ( 1ULL << ( ( op_size * 8 ) - 1 ) ) ) != 0;
+	flags.ZF = ( low_res & mask ) == 0;
+	flags.PF = std::popcount ( low_res & 0xFF ) == 0;
+	flags.AF = 0;
 }
 
 template <>
@@ -171,15 +171,36 @@ void imul_handler<2> ( const iced::Instruction& instr, KUBERA& context ) {
 	const int64_t src1_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 0u, context ) );
 	const int64_t src2_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 1u, context ) );
 	const uint64_t mask = GET_OPERAND_MASK ( op_size );
-
 	const int128_t res128 = static_cast< int128_t >( src1_val ) * static_cast< int128_t >( src2_val );
 	const uint64_t res64 = static_cast< uint64_t >( static_cast< int64_t >( res128 ) );
-
 	helpers::set_operand_value<uint64_t> ( instr, 0u, res64, context );
-
 	auto& flags = context.get_flags ( );
 	const int64_t sext_res = SIGN_EXTEND ( res64 & mask, op_size );
 	flags.CF = flags.OF = !( sext_res == static_cast< int64_t >( res128 ) );
+	// unofficial but well-defined
+	flags.SF = ( res64 & ( 1ULL << ( ( op_size * 8 ) - 1 ) ) ) != 0;
+	flags.ZF = ( res64 & mask ) == 0;
+	flags.PF = std::popcount ( res64 & 0xFF ) == 0;
+	flags.AF = 0;
+}
+
+template <>
+void imul_handler<3> ( const iced::Instruction& instr, KUBERA& context ) {
+	const size_t op_size = instr.op0_size ( );
+	const int64_t src1_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 1u, context ) );
+	const int64_t src2_val = static_cast< int64_t >( helpers::get_operand_value<uint64_t> ( instr, 2u, context ) );
+	const uint64_t mask = GET_OPERAND_MASK ( op_size );
+	const int128_t res128 = static_cast< int128_t >( src1_val ) * static_cast< int128_t >( src2_val );
+	const uint64_t res64 = static_cast< uint64_t >( static_cast< int64_t >( res128 ) );
+	helpers::set_operand_value<uint64_t> ( instr, 0u, res64, context );
+	auto& flags = context.get_flags ( );
+	const int64_t sext_res = SIGN_EXTEND ( res64 & mask, op_size );
+	flags.CF = flags.OF = !( sext_res == static_cast< int64_t >( res128 ) );
+	// unofficial but well-defined
+	flags.SF = ( res64 & ( 1ULL << ( ( op_size * 8 ) - 1 ) ) ) != 0;
+	flags.ZF = ( res64 & mask ) == 0;
+	flags.PF = std::popcount ( res64 & 0xFF ) == 0;
+	flags.AF = 0;
 }
 
 /// IMUL - Signed multiply
@@ -187,6 +208,7 @@ void handlers::imul ( const iced::Instruction& instr, KUBERA& context ) {
 	switch ( instr.op_count ( ) ) {
 		case 1: return imul_handler<1> ( instr, context );
 		case 2: return imul_handler<2> ( instr, context );
+		case 3: return imul_handler<3> ( instr, context );
 		default:
 			UNREACHABLE ( );
 	}
